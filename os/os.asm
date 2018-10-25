@@ -167,11 +167,6 @@ execute_command:
 ;;; Shell commands
 ;;; ---------------------------------------------------------------------------
 
-calc:
-;;; Start the calculator.
-	call calculator
-	ret
-
 help:
 ;;; Print a list of commands.
 
@@ -283,21 +278,25 @@ invalid_command:
 
 	;; The help command prints the first help_list_len commands from the
 	;; command table.
-	help_list_len dw 4
+	help_list_len dw 5  ; TODO: check val is correct
 
 ;;; Command strings:
 
 	calc_str db "calc",0
 	help_str db "help",0
+	interp_str db "int",0  ; TODO: better command str
 	keymap_str db "keymap",0
 	reboot_str db "reboot",0
 
 command_table:
 	dw calc_str
-	dw calc
+	dw calculator
 
 	dw help_str
 	dw help
+
+	dw interp_str
+	dw interp
 
 	dw keymap_str
 	dw keymap
@@ -309,6 +308,103 @@ command_table:
 	;; string does not match any of the above command strings.
 	dw input_buffer
 	dw invalid_command
+
+
+;;; ===========================================================================
+;;; Interpreter
+;;; ===========================================================================
+
+interp:
+;;; TODO
+	push di  ; save
+
+	jmp .start
+
+	.welcome_str:
+	line("Welcome to the interpreter!")
+	line("Run 'help' for help.")
+	db 0
+
+	.exit_str db "exit",0
+	.help_str db "help",0
+
+	.start:
+
+	mov di, .welcome_str
+	call println
+
+	.loop:
+
+	mov di, interp_prompt
+	call println
+
+	mov di, input_buffer
+	call getstr
+
+	;; Check for empty input.
+	cmp BYTE [di], 0
+	je .loop
+
+	;; Check for the exit command.
+	mov si, .exit_str
+	call compare_strings
+	cmp ax, 0
+	jne .return
+
+	;; Check for the help command.
+	mov si, .help_str
+	call compare_strings
+	cmp ax, 0
+	jne .help
+
+	;; Parse the input.
+	call interp_parse
+	jmp .loop
+
+	.help:
+	call interp_help
+	jmp .loop
+
+	.return:
+
+	pop di  ; restore
+	ret
+
+interp_parse:
+;;; Parse a line of input.
+;;; Pre: di points to the input str.
+	ret
+
+interp_help:
+;;; Display the interpreter's help message.
+	push di  ; save
+	jmp .start
+
+	.help_str:
+
+	line("TODO")
+	db break
+
+	line("Exit with 'exit'.")
+	db break
+
+	;; TODO: put info in README
+	line("Please see the README for more information.")
+	db 0
+
+	.start:
+	mov di, .help_str
+	call println
+
+	pop di  ; restore
+	ret
+
+
+;;; ---------------------------------------------------------------------------
+;;; Interpreter data
+;;; ---------------------------------------------------------------------------
+
+	interp_prompt db "int> ",0
 
 
 ;;; ===========================================================================
