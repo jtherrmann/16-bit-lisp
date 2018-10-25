@@ -1,3 +1,5 @@
+;;; TODO: address TODO/FIXME in file
+
 	%define break 0x0d, 0x0a
 	%define line(str) db str,break
 
@@ -107,10 +109,6 @@ shell:
 	mov di, .welcome_str
 	call println
 
-	mov di, shell_prompt
-	mov BYTE [di+0], '>'
-	mov BYTE [di+1], ' '
-
 	.loop:
 
 	mov di, shell_prompt
@@ -172,20 +170,6 @@ execute_command:
 calc:
 ;;; Start the calculator.
 	call calculator
-	ret
-
-hello:
-;;; Print "Hello, world!"
-	push di  ; save
-	jmp .print
-
-	.str db "Hello, world!",0
-
-	.print:
-	mov di, .str
-	call println
-
-	pop di  ; restore
 	ret
 
 help:
@@ -250,54 +234,6 @@ keymap:
 	pop di  ; restore
 	ret
 
-me:
-;;; Identify the user by changing the shell prompt to their name.
-
-	;; save
-	push ax
-	push bx
-	push di
-	push si
-
-	jmp .start
-
-	.str db "Who are you? ",0
-
-	.start:
-
-	mov di, .str
-	call println
-
-	;; Get their name.
-	mov di, input_buffer
-	call getstr
-
-	mov si, shell_prompt
-	mov bx, 0
-	jmp .test
-
-	;; Copy their name from the input buffer to the shell prompt.
-	.loop:
-	mov BYTE al, [di+bx]
-	mov BYTE [si+bx], al
-	inc bx
-
-	.test:
-	cmp BYTE [di+bx], 0
-	jne .loop
-
-	mov BYTE [si+bx+0], '>'
-	mov BYTE [si+bx+1], ' '
-	mov BYTE [si+bx+2], 0
-
-	;; restore
-	pop si
-	pop di
-	pop bx
-	pop ax
-
-	ret
-
 reboot:
 ;;; Reboot.
 	jmp .start
@@ -343,32 +279,22 @@ invalid_command:
 ;;; Shell data
 ;;; ---------------------------------------------------------------------------
 
-	shell_prompt times 32 db 0
+	shell_prompt db "> ",0
 
 	;; The help command prints the first help_list_len commands from the
-	;; command table. Commands located after this position are meant to be
-	;; discovered by the user. :)
-	help_list_len dw 6
+	;; command table.
+	help_list_len dw 4
 
 ;;; Command strings:
 
 	calc_str db "calc",0
-	hello_str db "hello",0
 	help_str db "help",0
 	keymap_str db "keymap",0
-	me_str db "me",0
 	reboot_str db "reboot",0
-
-	;; Commands not listed by help:
-
-	sos_str db "...---...",0
 
 command_table:
 	dw calc_str
 	dw calc
-
-	dw hello_str
-	dw hello
 
 	dw help_str
 	dw help
@@ -376,16 +302,8 @@ command_table:
 	dw keymap_str
 	dw keymap
 
-	dw me_str
-	dw me
-
 	dw reboot_str
 	dw reboot
-
-	;; Commands not listed by help:
-
-	dw sos_str
-	dw help
 
 	;; Allows execute_command to always call invalid_command if the input
 	;; string does not match any of the above command strings.
@@ -783,6 +701,7 @@ operator_table:
 ;;; Input
 ;;; ---------------------------------------------------------------------------
 
+;;; TODO: prevent buffer overflow
 getstr:
 ;;; Read a string from keyboard input.
 ;;; Pre: di points to an array.
@@ -1274,6 +1193,6 @@ power:
 ;;; ===========================================================================
 
 	input_buffer times 256 db 0
-	dvorak_mode db 0
+	dvorak_mode db 1  ; TODO: back to 0 before submit project
 
 os_end:	
