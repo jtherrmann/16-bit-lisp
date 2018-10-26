@@ -1,8 +1,14 @@
 ;;; TODO: address TODO/FIXME in file
 
-	;; TODO: caps
+	;; Null pointer.
+	%define NULL 0x0000
+
+	;; TODO: caps, comment
 	%define break 0x0d, 0x0a
 	%define line(str) db str,break
+
+	;; Define Lisp's empty list object as the null pointer.
+	%define EMPTY NULL
 
 	;; Lisp object and object heap sizes.
 	%define OBJ_SIZE 8
@@ -18,9 +24,6 @@
 	%define NAME 1
 	%define CAR 1
 	%define CDR 3
-
-	;; Null pointer.
-	%define NULL 0x0000
 
 	BITS 16
 
@@ -415,18 +418,32 @@ print_obj:
 ;;; Pre: di points to the object.
 	;; save
 	push ax
+	push di
 
 	jmp .start
+
+	.emptystr db "()",0
 
 	.bugstr:
 	db "You have found a bug: cannot print object of unrecognized type",0
 
 	.start:
 
+	cmp di, EMPTY
+	jne .skipempty
+	mov di, .emptystr
+	call print
+	jmp .return
+
+	.skipempty:
+
 	cmp BYTE [di+TYPE], TYPE_INT
+	jne .skipint
 	mov WORD ax, [di+VAL]
 	call print_num
 	jmp .return
+
+	.skipint:
 
 	mov di, .bugstr
 	call println
@@ -435,6 +452,7 @@ print_obj:
 	.return:
 	
 	;; restore
+	pop di
 	pop ax
 
 	ret
