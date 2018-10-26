@@ -139,6 +139,24 @@ lisp_start:
 ;;; Start the Lisp interpreter.
 	call init_freelist
 
+	;; TODO: temp
+	push ax
+	push di
+	mov di, 0
+	call get_int
+	mov di, ax
+	call print_newline
+	call print_obj
+	call print_newline
+	call print_newline
+	call print_freelist
+	call print_newline
+	mov di, EMPTY
+	call print_obj
+	call print_newline
+	pop di
+	pop ax
+
 	jmp .start
 
 	.welcome_str:
