@@ -6,7 +6,7 @@
 
 	;; Lisp object and object heap sizes.
 	%define OBJ_SIZE 8
-	%define OBJ_HEAP_SIZE 400  ; TODO: bigger
+	%define OBJ_HEAP_SIZE 80  ; TODO: bigger
 	%define LAST_OBJ OBJ_HEAP_SIZE - OBJ_SIZE
 
 	;; Lisp object types.
