@@ -516,6 +516,7 @@ print_freelist:
 
 	.colonstr db ": ",0
 	.ptrstr db " -> ",0
+	.nullstr db "NULL",0
 	.freecountstr db "free objects: ",0
 
 	.start:
@@ -555,6 +556,9 @@ print_freelist:
 	.test:
 	cmp bx, NULL
 	jne .loop
+
+	mov di, .nullstr
+	call print
 
 	call print_newline
 
