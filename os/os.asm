@@ -9,6 +9,9 @@
 	%define OBJ_HEAP_SIZE 400  ; TODO: bigger
 	%define LAST_OBJ OBJ_HEAP_SIZE - OBJ_SIZE
 
+	;; Lisp object types.
+	%define TYPE_INT 0x01
+
 	;; Lisp object field offsets.
 	%define TYPE 0
 	%define VAL 1
@@ -245,6 +248,7 @@ keymap:
 	pop di  ; restore
 	ret
 
+;;; TODO: don't print "See you soon!" if rebooting because lisp crashed
 reboot:
 ;;; Reboot.
 	jmp .start
@@ -330,6 +334,24 @@ command_table:
 ;;; Interpreter
 ;;; ===========================================================================
 
+lisp_crash:
+;;; Crash the Lisp interpreter.
+	jmp .start
+
+	.str db "Lisp has crashed.",0
+
+	.start:
+
+	mov di, .str
+	call println
+
+	call reboot
+
+;;; TODO: exiting and then re-entering the interpreter leads to strange
+;;; behavior, e.g. free object count increasing (but maybe not the actual
+;;; number of free objects?); maybe just remove the shell and only boot to
+;;; the interp, replace the interp's exit command with a restart command that
+;;; reboots or just give the interp general special commands prefixed w/ :
 interp:
 ;;; TODO
 	push di  ; save
@@ -386,6 +408,48 @@ interp:
 	.return:
 
 	pop di  ; restore
+	ret
+
+get_obj:
+;;; Construct a Lisp object with the specified type.
+;;; Pre: dl contains the type.
+;;; Post: ax points to the object.
+	;; save
+	push bx
+	push si
+
+	jmp .start
+
+	.nofreestr db "Error: No free memory for new object.",0
+
+	.start:
+
+	;; Check if the free list is empty.
+	cmp WORD [freelist], NULL
+	je .nofree
+
+	;; Pop the head off the free list.
+	mov WORD bx, [freelist]
+	mov WORD si, [bx+CDR]
+	mov WORD [freelist], si
+	dec WORD [freecount]
+
+	;; Set the object's type and return the object.
+	mov BYTE [bx+TYPE], dl
+	mov ax, bx
+	jmp .return
+
+	.nofree:
+	mov di, .nofreestr
+	call println
+	jmp lisp_crash
+
+	.return:
+
+	;; restore
+	pop si
+	pop bx
+
 	ret
 
 init_freelist:
