@@ -309,7 +309,7 @@ invalid_command:
 ;;; Command strings:
 
 	help_str db "help",0
-	interp_str db "int",0  ; TODO: better command str
+	lisp_str db "lisp",0
 	keymap_str db "keymap",0
 	reboot_str db "reboot",0
 
@@ -317,8 +317,8 @@ command_table:
 	dw help_str
 	dw help
 
-	dw interp_str
-	dw interp
+	dw lisp_str
+	dw lisp_start
 
 	dw keymap_str
 	dw keymap
@@ -333,7 +333,7 @@ command_table:
 
 
 ;;; ===========================================================================
-;;; Interpreter
+;;; Lisp
 ;;; ===========================================================================
 
 lisp_crash:
@@ -352,10 +352,10 @@ lisp_crash:
 ;;; TODO: exiting and then re-entering the interpreter leads to strange
 ;;; behavior, e.g. free object count increasing (but maybe not the actual
 ;;; number of free objects?); maybe just remove the shell and only boot to
-;;; the interp, replace the interp's exit command with a restart command that
+;;; the lisp, replace the interp's exit command with a restart command that
 ;;; reboots or just give the interp general special commands prefixed w/ :
-interp:
-;;; TODO
+lisp_start:
+;;; Start the Lisp interpreter.
 	push di  ; save
 
 	call init_freelist
@@ -363,12 +363,11 @@ interp:
 	jmp .start
 
 	.welcome_str:
-	line("Welcome to the interpreter!")
-	line("Run 'help' for help.")
+	line("Welcome to Lisp!")
+	line("Exit with 'exit'.")
 	db 0
 
 	.exit_str db "exit",0
-	.help_str db "help",0
 
 	.start:
 
@@ -377,7 +376,7 @@ interp:
 
 	.loop:
 
-	mov di, interp_prompt
+	mov di, lisp_prompt
 	call println
 
 	mov di, input_buffer
@@ -393,18 +392,8 @@ interp:
 	cmp ax, 0
 	jne .return
 
-	;; Check for the help command.
-	mov si, .help_str
-	call compare_strings
-	cmp ax, 0
-	jne .help
-
 	;; Parse the input.
-	call interp_parse
-	jmp .loop
-
-	.help:
-	call interp_help
+	call lisp_parse
 	jmp .loop
 
 	.return:
@@ -568,7 +557,7 @@ init_freelist:
 
 	ret
 
-;;; TODO: move to interp debug section
+;;; TODO: move to debug section
 print_freelist:
 ;;; Print the list of free Lisp objects.
 	;; save
@@ -642,41 +631,17 @@ print_freelist:
 	ret
 
 
-interp_parse:
+lisp_parse:
 ;;; Parse a line of input.
 ;;; Pre: di points to the input str.
 	ret
 
-interp_help:
-;;; Display the interpreter's help message.
-	push di  ; save
-	jmp .start
-
-	.help_str:
-
-	line("TODO")
-	db break
-
-	line("Exit with 'exit'.")
-	db break
-
-	;; TODO: put info in README
-	line("Please see the README for more information.")
-	db 0
-
-	.start:
-	mov di, .help_str
-	call println
-
-	pop di  ; restore
-	ret
-
 
 ;;; ---------------------------------------------------------------------------
-;;; Interpreter data
+;;; Lisp data
 ;;; ---------------------------------------------------------------------------
 
-	interp_prompt db "int> ",0
+	lisp_prompt db "lisp> ",0
 
 
 ;;; ===========================================================================
