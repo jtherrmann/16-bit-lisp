@@ -1,5 +1,7 @@
 ;;; TODO:
 ;;; - address TODO/FIXME in file
+;;; - make sure procedures preserve ax when they call other procedures that
+;;;   return in ax
 
 	;; Null pointer.
 	%define NULL 0x0000
