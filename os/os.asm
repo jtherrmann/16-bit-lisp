@@ -1,7 +1,23 @@
 ;;; TODO: address TODO/FIXME in file
 
+	;; TODO: caps
 	%define break 0x0d, 0x0a
 	%define line(str) db str,break
+
+	;; Lisp object and object heap sizes.
+	%define OBJ_SIZE 8
+	%define OBJ_HEAP_SIZE 400  ; TODO: bigger
+	%define LAST_OBJ OBJ_HEAP_SIZE - OBJ_SIZE
+
+	;; Lisp object field offsets.
+	%define TYPE 0
+	%define VAL 1
+	%define NAME 1
+	%define CAR 1
+	%define CDR 3
+
+	;; Null pointer.
+	%define NULL 0x0000
 
 	BITS 16
 
@@ -318,6 +334,8 @@ interp:
 ;;; TODO
 	push di  ; save
 
+	call init_freelist
+
 	jmp .start
 
 	.welcome_str:
@@ -369,6 +387,129 @@ interp:
 
 	pop di  ; restore
 	ret
+
+init_freelist:
+;;; Construct the initial list of free objects.
+	;; save
+	push bx
+	push cx
+
+	;; Iterate through the object heap, pointing each object's CDR at the
+	;; next object in the heap.
+
+	;; Current object index.
+	xor bx, bx
+
+	jmp .test
+	.loop:
+
+	;; Point cx at the next object.
+	mov cx, obj_heap
+	add cx, bx
+	add cx, OBJ_SIZE
+
+	;; Point the current object's CDR at the next object.
+	mov WORD [obj_heap+bx+CDR], cx
+
+	;; Increment free objects count.
+	inc WORD [freecount]
+
+	;; Increment current object index.
+	add bx, OBJ_SIZE
+	
+	;; Continue the loop until we reach the last object.
+	.test:
+	cmp bx, LAST_OBJ
+	jne .loop
+
+	;; Set the last object's CDR to NULL.
+	mov WORD [obj_heap+bx+CDR], NULL
+	inc WORD [freecount]
+
+	;; Set the head of the free list to the first object in the object
+	;; heap.
+	mov WORD [freelist], obj_heap
+
+	;; TODO: temp
+	call print_freelist
+
+	;; restore
+	pop cx
+	pop bx
+
+	ret
+
+;;; TODO: move to interp debug section
+print_freelist:
+;;; Print the list of free Lisp objects.
+	;; save
+	push ax
+	push bx
+	push cx
+	push di
+
+	jmp .start
+
+	.colonstr db ": ",0
+	.ptrstr db " -> ",0
+	.freecountstr db "free objects: ",0
+
+	.start:
+
+	call print_newline
+
+	;; Point bx at the head of the free list.
+	mov bx, [freelist]
+
+	;; Free objects count, only used for printing.
+	xor cx, cx
+
+	jmp .test
+	.loop:
+
+	;; Print current object's position in free list.
+	mov ax, cx
+	call print_num
+
+	mov di, .colonstr
+	call print
+
+	;; Print address of current object.
+	mov ax, bx
+	call print_num
+
+	mov di, .ptrstr
+	call print
+
+	;; Point bx at the next object.
+	mov bx, [bx+CDR]
+
+	;; Increment free objects count.
+	inc cx
+
+	;; Continue the loop until the current object is NULL.
+	.test:
+	cmp bx, NULL
+	jne .loop
+
+	call print_newline
+
+	;; Print the stored free objects count.
+	mov di, .freecountstr
+	call println
+	mov ax, [freecount]
+	call print_num
+
+	call print_newline
+
+	;; restore
+	pop di
+	pop cx
+	pop bx
+	pop ax
+
+	ret
+
 
 interp_parse:
 ;;; Parse a line of input.
@@ -987,6 +1128,7 @@ print:
 	
 	ret
 
+;;; TODO: take arg in di
 println_num:
 ;;; Print a number preceded by a newline.
 ;;; Pre: ax contains the number.
@@ -994,6 +1136,7 @@ println_num:
 	call print_num
 	ret
 
+;;; TODO: take arg in di
 print_num:
 ;;; Print a number.
 ;;; Pre: ax contains the number.
@@ -1290,5 +1433,12 @@ power:
 
 	input_buffer times 256 db 0
 	dvorak_mode db 1  ; TODO: back to 0 before submit project
+
+	freelist dw 0x0000
+	freecount dw 0x0000
+
+	;; TODO: comment why align (use low bits, e.g. mark in mark-and-sweep)
+	align OBJ_SIZE
+	obj_heap times OBJ_HEAP_SIZE db 0
 
 os_end:	
