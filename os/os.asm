@@ -410,6 +410,56 @@ interp:
 	pop di  ; restore
 	ret
 
+print_obj:
+;;; Print a Lisp object.
+;;; Pre: di points to the object.
+	;; save
+	push ax
+
+	jmp .start
+
+	.bugstr:
+	db "You have found a bug: cannot print object of unrecognized type",0
+
+	.start:
+
+	cmp BYTE [di+TYPE], TYPE_INT
+	mov WORD ax, [di+VAL]
+	call print_num
+	jmp .return
+
+	mov di, .bugstr
+	call println
+	jmp lisp_crash
+
+	.return:
+	
+	;; restore
+	pop ax
+
+	ret
+
+get_int:
+;;; Construct a Lisp int.
+;;; Pre: di contains the int value.
+;;; Post: ax points to the object.
+	;; save
+	push bx
+
+	push di  ; Save int value.
+	mov BYTE dl, TYPE_INT
+	call get_obj
+	pop di  ; Restore int value.
+
+	mov bx, ax
+	mov WORD [bx+VAL], di
+	mov ax, bx
+
+	;; restore
+	pop bx
+
+	ret
+
 get_obj:
 ;;; Construct a Lisp object with the specified type.
 ;;; Pre: dl contains the type.
@@ -420,7 +470,7 @@ get_obj:
 
 	jmp .start
 
-	.nofreestr db "Error: No free memory for new object.",0
+	.nofreestr db "Error: no free memory for new object",0
 
 	.start:
 
