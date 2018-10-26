@@ -416,7 +416,6 @@ print_obj:
 ;;; Print a Lisp object.
 ;;; Pre: di points to the object.
 	;; save
-	push ax
 	push di
 
 	jmp .start
@@ -438,7 +437,7 @@ print_obj:
 
 	cmp BYTE [di+TYPE], TYPE_INT
 	jne .skipint
-	mov WORD ax, [di+VAL]
+	mov WORD di, [di+VAL]
 	call print_num
 	jmp .return
 
@@ -452,7 +451,6 @@ print_obj:
 	
 	;; restore
 	pop di
-	pop ax
 
 	ret
 
@@ -574,7 +572,6 @@ init_freelist:
 print_freelist:
 ;;; Print the list of free Lisp objects.
 	;; save
-	push ax
 	push bx
 	push cx
 	push di
@@ -600,14 +597,14 @@ print_freelist:
 	.loop:
 
 	;; Print current object's position in free list.
-	mov ax, cx
+	mov di, cx
 	call print_num
 
 	mov di, .colonstr
 	call print
 
 	;; Print address of current object.
-	mov ax, bx
+	mov di, bx
 	call print_num
 
 	mov di, .ptrstr
@@ -632,7 +629,7 @@ print_freelist:
 	;; Print the stored free objects count.
 	mov di, .freecountstr
 	call println
-	mov WORD ax, [freecount]
+	mov WORD di, [freecount]
 	call print_num
 
 	call print_newline
@@ -641,7 +638,6 @@ print_freelist:
 	pop di
 	pop cx
 	pop bx
-	pop ax
 
 	ret
 
@@ -881,24 +877,25 @@ print:
 	
 	ret
 
-;;; TODO: take arg in di
 println_num:
 ;;; Print a number preceded by a newline.
-;;; Pre: ax contains the number.
+;;; Pre: di contains the number.
 	call print_newline
 	call print_num
 	ret
 
-;;; TODO: take arg in di
 print_num:
 ;;; Print a number.
-;;; Pre: ax contains the number.
+;;; Pre: di contains the number.
 
 	;; save
 	push ax
 	push bx
 	push cx
 	push dx
+
+	;; Set ax to the number.
+	mov ax, di
 
 	cmp ax, 0
 	jge .positive
