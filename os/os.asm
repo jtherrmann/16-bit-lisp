@@ -524,7 +524,7 @@ print_freelist:
 	call print_newline
 
 	;; Point bx at the head of the free list.
-	mov bx, [freelist]
+	mov WORD bx, [freelist]
 
 	;; Free objects count, only used for printing.
 	xor cx, cx
@@ -547,7 +547,7 @@ print_freelist:
 	call print
 
 	;; Point bx at the next object.
-	mov bx, [bx+CDR]
+	mov WORD bx, [bx+CDR]
 
 	;; Increment free objects count.
 	inc cx
@@ -565,7 +565,7 @@ print_freelist:
 	;; Print the stored free objects count.
 	mov di, .freecountstr
 	call println
-	mov ax, [freecount]
+	mov WORD ax, [freecount]
 	call print_num
 
 	call print_newline
