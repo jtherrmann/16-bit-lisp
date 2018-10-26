@@ -6,9 +6,11 @@
 	;; Null pointer.
 	%define NULL 0x0000
 
-	;; TODO: caps, comment
-	%define break 0x0d, 0x0a
-	%define line(str) db str,break
+	;; Carriage ret char, new line char.
+	%define NEWLINE 0x0d, 0x0a
+
+	;; Prefix for interpreter commands.
+	%define CMD_PREFIX ':'
 
 	;; Define Lisp's empty list object as the null pointer.
 	%define EMPTY NULL
@@ -113,223 +115,7 @@ os_start:
 	mov ax, os_load_start
 	mov ds, ax
 
-	call shell
-
-
-;;; ===========================================================================
-;;; Shell
-;;; ===========================================================================
-
-shell:	
-;;; Run the shell.
-	jmp .start
-
-	.welcome_str:
-	line("Welcome!")
-	line("Run 'help' for a list of commands.")
-	db 0
-
-	.start:
-
-	mov di, .welcome_str
-	call println
-
-	.loop:
-
-	mov di, shell_prompt
-	call println
-
-	mov di, input_buffer
-	call getstr
-
-	;; Check for empty input.
-	cmp BYTE [di], 0
-	je .loop
-
-	call execute_command
-	jmp .loop
-
-	ret
-
-execute_command:
-;;; Call a command given an input string.
-;;; Pre: di points to the input string.
-
-	;; save
-	push bx
-	push si
-
-	mov bx, command_table
-	jmp .test
-
-	.loop:
-
-	;; Advance to the next command string.
-	add bx, 4
-
-	.test:
-
-	;; Compare the current command string with the input string.
-	mov WORD si, [bx]
-	call compare_strings
-
-	;; Loop if the strings are not equal.
-	cmp ax, 0
-	je .loop
-
-	;; The command and input strings are equal, so call the procedure that
-	;; follows the command string in the table.
-	add bx, 2
-	call [bx]
-
-	;; restore
-	pop si
-	pop bx
-
-	ret
-
-;;; ---------------------------------------------------------------------------
-;;; Shell commands
-;;; ---------------------------------------------------------------------------
-
-help:
-;;; Print a list of commands.
-
-	;; save
-	push ax
-	push bx
-	push di
-
-	xor ax, ax
-	mov bx, command_table
-	jmp .test
-
-	.loop:
-
-	;; Print the current command string.
-	mov WORD di, [bx]
-	call println
-
-	;; Advance to the next command string.
-	add bx, 4
-	inc ax
-
-	.test:
-
-	cmp ax, [help_list_len]
-	jl .loop
-
-	;; restore
-	pop di
-	pop bx
-	pop ax
-
-	ret
-
-keymap:
-;;; Toggle between QWERTY and Dvorak.
-	push di  ; save
-	jmp .start
-
-	.qwertystr db "Layout: QWERTY",0
-	.dvorakstr db "Layout: Dvorak",0
-
-	.start:
-
-	cmp BYTE [dvorak_mode], 0
-	je .dvorak
-
-	mov di, .qwertystr
-	call println
-	mov BYTE [dvorak_mode], 0
-	jmp .return
-
-	.dvorak:
-
-	mov di, .dvorakstr
-	call println
-	mov BYTE [dvorak_mode], 1
-
-	.return:
-	pop di  ; restore
-	ret
-
-;;; TODO: don't print "See you soon!" if rebooting because lisp crashed
-reboot:
-;;; Reboot.
-	jmp .start
-
-	.str1 db "See you soon!",0
-	.str2 db "Press any key to reboot.",0
-
-	.start:
-
-	mov di, .str1
-	call println
-
-	mov di, .str2
-	call print_newline
-	call println
-
-	;; Wait for a keypress.
-	mov ah, 0
-	int 0x16
-
-	;; Reboot.
-	;; https://stackoverflow.com/a/32686533
-	db 0x0ea
-	dw 0x0000
-	dw 0xffff
-	
-invalid_command:
-;;; Handle an invalid user command.
-	push di  ; save
-	jmp .print
-
-	.str db "Invalid command.",0
-
-	.print:
-	mov di, .str
-	call println
-
-	pop di  ; restore
-	ret
-
-
-;;; ---------------------------------------------------------------------------
-;;; Shell data
-;;; ---------------------------------------------------------------------------
-
-	shell_prompt db "> ",0
-
-	;; The help command prints the first help_list_len commands from the
-	;; command table.
-	help_list_len dw 4  ; TODO: check val is correct
-
-;;; Command strings:
-
-	help_str db "help",0
-	lisp_str db "lisp",0
-	keymap_str db "keymap",0
-	reboot_str db "reboot",0
-
-command_table:
-	dw help_str
-	dw help
-
-	dw lisp_str
-	dw lisp_start
-
-	dw keymap_str
-	dw keymap
-
-	dw reboot_str
-	dw reboot
-
-	;; Allows execute_command to always call invalid_command if the input
-	;; string does not match any of the above command strings.
-	dw input_buffer
-	dw invalid_command
+	jmp lisp_start
 
 
 ;;; ===========================================================================
@@ -347,27 +133,22 @@ lisp_crash:
 	mov di, .str
 	call println
 
-	call reboot
+	jmp reboot
 
-;;; TODO: exiting and then re-entering the interpreter leads to strange
-;;; behavior, e.g. free object count increasing (but maybe not the actual
-;;; number of free objects?); maybe just remove the shell and only boot to
-;;; the lisp, replace the interp's exit command with a restart command that
-;;; reboots or just give the interp general special commands prefixed w/ :
 lisp_start:
 ;;; Start the Lisp interpreter.
-	push di  ; save
-
 	call init_freelist
 
 	jmp .start
 
 	.welcome_str:
-	line("Welcome to Lisp!")
-	line("Exit with 'exit'.")
+	db "Welcome to Lisp!"
+	db NEWLINE
+	db "Run ",CMD_PREFIX,"help for a list of special commands."
+	db NEWLINE
 	db 0
 
-	.exit_str db "exit",0
+	.prompt db "> ",0
 
 	.start:
 
@@ -376,7 +157,7 @@ lisp_start:
 
 	.loop:
 
-	mov di, lisp_prompt
+	mov di, .prompt
 	call println
 
 	mov di, input_buffer
@@ -386,20 +167,16 @@ lisp_start:
 	cmp BYTE [di], 0
 	je .loop
 
-	;; Check for the exit command.
-	mov si, .exit_str
-	call compare_strings
-	cmp ax, 0
-	jne .return
-
-	;; Parse the input.
-	call lisp_parse
+	;; Check for a command.
+	cmp BYTE [di], CMD_PREFIX
+	jne .parse
+	call execute_command
 	jmp .loop
 
-	.return:
-
-	pop di  ; restore
-	ret
+	;; Parse the input expression.
+	.parse:
+	call lisp_parse
+	jmp .loop
 
 print_obj:
 ;;; Print a Lisp object.
@@ -634,14 +411,188 @@ print_freelist:
 lisp_parse:
 ;;; Parse a line of input.
 ;;; Pre: di points to the input str.
+	;; TODO
+	ret
+
+
+;;; ===========================================================================
+;;; Interpreter commands
+;;; ===========================================================================
+
+execute_command:
+;;; Call a command given an input string.
+;;; Pre: di points to the input string.
+
+	;; save
+	push bx
+	push si
+
+	mov bx, command_table
+	jmp .test
+
+	.loop:
+
+	;; Advance to the next command string.
+	add bx, 4
+
+	.test:
+
+	;; Compare the current command string with the input string.
+	mov WORD si, [bx]
+	call compare_strings
+
+	;; Loop if the strings are not equal.
+	cmp ax, 0
+	je .loop
+
+	;; The command and input strings are equal, so call the procedure that
+	;; follows the command string in the table.
+	add bx, 2
+	call [bx]
+
+	;; restore
+	pop si
+	pop bx
+
 	ret
 
 
 ;;; ---------------------------------------------------------------------------
-;;; Lisp data
+;;; Command procedures
 ;;; ---------------------------------------------------------------------------
 
-	lisp_prompt db "lisp> ",0
+help:
+;;; Print a list of commands.
+
+	;; save
+	push ax
+	push bx
+	push di
+
+	xor ax, ax
+	mov bx, command_table
+	jmp .test
+
+	.loop:
+
+	;; Print the current command string.
+	mov WORD di, [bx]
+	call println
+
+	;; Advance to the next command string.
+	add bx, 4
+	inc ax
+
+	.test:
+
+	cmp ax, [help_list_len]
+	jl .loop
+
+	;; restore
+	pop di
+	pop bx
+	pop ax
+
+	ret
+
+keymap:
+;;; Toggle between QWERTY and Dvorak.
+	push di  ; save
+	jmp .start
+
+	.qwertystr db "Layout: QWERTY",0
+	.dvorakstr db "Layout: Dvorak",0
+
+	.start:
+
+	cmp BYTE [dvorak_mode], 0
+	je .dvorak
+
+	mov di, .qwertystr
+	call println
+	mov BYTE [dvorak_mode], 0
+	jmp .return
+
+	.dvorak:
+
+	mov di, .dvorakstr
+	call println
+	mov BYTE [dvorak_mode], 1
+
+	.return:
+	pop di  ; restore
+	ret
+
+;;; TODO: don't print "See you soon!" if rebooting because lisp crashed
+reboot:
+;;; Reboot.
+	jmp .start
+
+	.str1 db "See you soon!",0
+	.str2 db "Press any key to reboot.",0
+
+	.start:
+
+	mov di, .str1
+	call println
+
+	mov di, .str2
+	call print_newline
+	call println
+
+	;; Wait for a keypress.
+	mov ah, 0
+	int 0x16
+
+	;; Reboot.
+	;; https://stackoverflow.com/a/32686533
+	db 0x0ea
+	dw 0x0000
+	dw 0xffff
+	
+invalid_command:
+;;; Handle an invalid command.
+	push di  ; save
+	jmp .print
+
+	.str db "Invalid command.",0
+
+	.print:
+	mov di, .str
+	call println
+
+	pop di  ; restore
+	ret
+
+
+;;; ---------------------------------------------------------------------------
+;;; Command data
+;;; ---------------------------------------------------------------------------
+
+	;; The help command prints the first help_list_len commands from the
+	;; command table.
+	help_list_len dw 3  ; TODO: check val is correct
+
+;;; Command strings:
+
+	help_str db CMD_PREFIX,"help",0
+	keymap_str db CMD_PREFIX,"keymap",0
+	reboot_str db CMD_PREFIX,"restart",0
+
+command_table:
+	dw help_str
+	dw help
+
+	dw keymap_str
+	dw keymap
+
+	dw reboot_str
+	dw reboot
+
+	;; Allows execute_command to always call invalid_command if the input
+	;; string does not match any of the above command strings.
+	dw input_buffer
+	dw invalid_command
 
 
 ;;; ===========================================================================
@@ -933,16 +884,19 @@ print_num:
 
 print_newline:
 ;;; Move the cursor to the start of the next line.
-	push ax  ; save
+	;; save
+	push di
 
-	mov ah, 0x0e
-	mov al, 0x0d  ; carriage ret
-	int 0x10
+	jmp .print
+	.str db NEWLINE,0
 
-	mov al, 0x0a  ; newline
-	int 0x10
+	.print:
+	mov di, .str
+	call print
 
-	pop ax  ; restore
+	;; restore
+	pop di
+
 	ret
 
 
