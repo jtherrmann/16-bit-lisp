@@ -227,6 +227,13 @@ main:
 	;; Parse the input expression.
 	.parse:
 	call parse
+	cmp ax, NULL
+	je .loop
+
+	mov di, ax
+	call print_newline
+	call print_obj
+
 	jmp .loop
 
 
@@ -395,23 +402,75 @@ init_freelist:
 ;;; Parse
 ;;; ===========================================================================
 
+;;; TODO: fulfill non-space pre in main
+;;; TODO: fulfill non-space post
 parse:
-;;; Parse a line of input.
-;;; Pre: di points to the input str.
-	;; TODO
+;;; Convert part of the input str to a Lisp object.
+;;; Pre: di points to a non-space char in the input str.
+;;; Post:
+;;; - ax points to the parsed object.
+;;; - di points to the first non-space char after the parsed substr.
+;;; On error: Return NULL.
+
+	jmp .start
+
+	.badinputstr db "Parse error: char unrecognized in this context",0
+
+	.start:
+
+	cmp BYTE [di], 0x30
+	jl .skipint
+	cmp BYTE [di], 0x39
+	jg .skipint
+	call parse_int_obj
+	jmp .return
+
+	.skipint:
+
+	call badinput
+
+	push di
+	mov di, .badinputstr
+	call println
+	pop di
+
+	mov ax, NULL
+
+	.return:
 	ret
 
+;;; TODO: fulfill non-space post
+;;; TODO: on error
+parse_int_obj:
+;;; Convert part of the input str to a Lisp int.
+;;; Pre: di points to a char in the range 0x30-0x39 in the input str.
+;;; Post:
+;;; - ax points to the parsed object.
+;;; - di points to the first non-space char after the parsed substr.
+;;; On error: Return NULL.
+	call parse_num
+
+	push di  ; Save input pointer.
+	mov di, ax
+	call get_int
+	pop di  ; Restore input pointer.
+
+	ret
+
+;;; TODO:
+;;; - update pre/post behavior
+;;; - error if doesn't end on (, ), space, or 0.
 parse_num:
 ;;; Get an integer from its string representation.
 ;;; 
 ;;; Pre: di points to a string that begins with a char in the range 0x30-0x39
 ;;; and terminates on any char outside of that range (e.g. whitespace or an
 ;;; arithmetic operator).
-;;; 
-;;; Post: ax contains the integer and cx its number of digits.
+;;; Post: ax contains the int.
 
 	;; save
 	push bx
+	push cx
 	push di
 	push dx
 	push si
@@ -499,7 +558,54 @@ parse_num:
 	pop si
 	pop dx
 	pop di
+	pop cx
 	pop bx
+
+	ret
+
+badinput:
+;;; Print an arrow indicating a bad char in the input str.
+;;; Pre: di points to the char.
+	;; save
+	push cx
+
+	jmp .start
+
+	.prestr db "  ",0
+
+	.start:
+
+	;; Print a number of spaces equal to the width of the REPL prompt.
+	push di  ; Save input pointer.
+	mov di, .prestr
+	call println
+	pop di  ; Restore input pointer.
+
+	;; Print a number of spaces equal to the bad char's offset from the
+	;; start of the input str.
+
+	;; Offset counter.
+	mov cx, di
+	sub cx, input_buffer
+
+	jmp .test
+	.loop:
+
+	mov BYTE dl, ' '
+	call putc
+
+	dec cx
+
+	.test:
+	cmp cx, 0
+	jg .loop
+
+	;; Print an arrow underneath the bad char.
+	mov BYTE dl, '^'
+	call putc
+
+	;; restore
+	pop cx
 
 	ret
 
