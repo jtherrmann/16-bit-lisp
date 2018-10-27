@@ -2,7 +2,6 @@
 ;;; - address TODO/FIXME in file
 ;;; - make sure procedures preserve ax when they call other procedures that
 ;;;   return in ax
-;;; - rename os/os.asm to something like lisp/lisp.asm
 
 	;; Null pointer.
 	%define NULL 0x0000
