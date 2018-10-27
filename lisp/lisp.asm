@@ -39,10 +39,10 @@
 	;;   - https://www.cs.uaf.edu/2017/fall/cs301/lecture/09_15_strings_arrays.html
 	
 ;;; ===========================================================================
-;;; Boot loader
+;;; Boot sector
 ;;; ===========================================================================
 
-	;; Special thanks to Michael Petch for his help with the boot loader!
+	;; Special thanks to Michael Petch for his help with the boot sector!
 	;; https://stackoverflow.com/users/3857942/michael-petch
 
 	;; General sources:
@@ -55,32 +55,32 @@
 
 	section boot, vstart=0x0000
 
-	os_load_start equ 0x0060
+	lisp_load_start equ 0x0060
 
-	;; Set up the stack above where the OS is loaded.
+	;; Set up the stack above where Lisp is loaded.
 	;; 
-	;; Set SS (the Stack Segment register) to os_load_start and SP
+	;; Set SS (the Stack Segment register) to lisp_load_start and SP
 	;; (the Stack Pointer) to 0x0000 so that the stack grows down from
-	;; os_load_start:0xFFFF toward the "top" of the stack at
-	;; os_load_start:0x0000.
-	mov ax, os_load_start
+	;; lisp_load_start:0xFFFF toward the "top" of the stack at
+	;; lisp_load_start:0x0000.
+	mov ax, lisp_load_start
 	mov ss, ax
 	xor sp, sp
 
 	;; Number of 512B sectors to read from the drive.
-        mov al, (os_end-os_start+511)/512
+        mov al, (lisp_end-lisp_start+511)/512
 
         mov ch, 0  ; cylinder
         mov cl, 2  ; starting sector
         mov dh, 0  ; drive head
 
-	;; Set ES (the Extra Segment register) to os_load_start and BX to
+	;; Set ES (the Extra Segment register) to lisp_load_start and BX to
 	;; 0x0000 so that we load the sectors into memory starting at
-	;; os_load_start:0x0000.
+	;; lisp_load_start:0x0000.
 	;; 
 	;; https://stackoverflow.com/a/32705076
 	;; http://www.c-jump.com/CIS77/ASM/Memory/lecture.html#M77_0120_reg_names
-        mov bx, os_load_start 
+        mov bx, lisp_load_start 
         mov es, bx  
         xor bx, bx
 
@@ -88,37 +88,37 @@
         mov ah, 0x02
         int 0x13
 
-	;; Far jump to os_load_start:0x0000.
+	;; Far jump to lisp_load_start:0x0000.
 	;; 
-	;; Set CS (the Code Segment register) to os_load_start and the
+	;; Set CS (the Code Segment register) to lisp_load_start and the
 	;; instruction pointer to 0x0000, so the CPU begins executing
-	;; instructions at os_load_start:0x0000.
+	;; instructions at lisp_load_start:0x0000.
 	;; 
 	;; https://wiki.osdev.org/Segmentation#Far_Jump
 	;; https://stackoverflow.com/a/47249973
 	;; http://www.c-jump.com/CIS77/ASM/Memory/lecture.html#M77_0120_reg_names
-        jmp os_load_start:0x0000
+        jmp lisp_load_start:0x0000
 
 	;; Pad boot sector to boot signature.
 	times 510-($-$$) db 0
 	db 0x55
 	db 0xaa
 
-	section os, vstart=0x0000
-os_start:	
+	section lisp, vstart=0x0000
+lisp_start:	
 
-	;; Set DS (the Data Segment register) to os_load_start.
+	;; Set DS (the Data Segment register) to lisp_load_start.
 	;; 
 	;; Michael Petch: https://stackoverflow.com/q/52461308
 	;; http://www.c-jump.com/CIS77/ASM/Memory/lecture.html#M77_0120_reg_names
-	mov ax, os_load_start
+	mov ax, lisp_load_start
 	mov ds, ax
 
-	jmp lisp_start
+	jmp main
 
 
 ;;; ===========================================================================
-;;; Lisp
+;;; Main
 ;;; ===========================================================================
 
 lisp_crash:
@@ -134,8 +134,8 @@ lisp_crash:
 
 	jmp reboot
 
-lisp_start:
-;;; Start the Lisp interpreter.
+main:
+;;; Run the Lisp interpreter.
 	call init_freelist
 	call make_initial_objs
 
@@ -184,7 +184,6 @@ lisp_start:
 	call print_obj
 
 	call print_newline
-	call print_freelist
 
 	pop di
 	pop ax
@@ -206,6 +205,7 @@ lisp_start:
 	mov di, .welcome_str
 	call println
 
+	;; REPL.
 	.loop:
 
 	mov di, .prompt
@@ -226,132 +226,13 @@ lisp_start:
 
 	;; Parse the input expression.
 	.parse:
-	call lisp_parse
+	call parse
 	jmp .loop
 
-print_obj:
-;;; Print a Lisp object.
-;;; Pre: di points to the object.
-	;; save
-	push di
 
-	jmp .start
-
-	.emptystr db "()",0
-
-	.bugstr:
-	db "You have found a bug: cannot print object of unrecognized type",0
-
-	.start:
-
-	cmp di, [emptylist]
-	jne .skipempty
-	mov di, .emptystr
-	call print
-	jmp .return
-
-	.skipempty:
-
-	cmp BYTE [di+TYPE], TYPE_INT
-	jne .skipint
-	mov WORD di, [di+VAL]
-	call print_num
-	jmp .return
-
-	.skipint:
-
-	cmp BYTE [di+TYPE], TYPE_PAIR
-	jne .skippair
-	call print_pair
-	jmp .return
-
-	.skippair:
-
-	mov di, .bugstr
-	call println
-	jmp lisp_crash
-
-	.return:
-	
-	;; restore
-	pop di
-
-	ret
-
-;;; TODO: test w/ longer chains
-print_pair:
-;;; Print a chain of Lisp objects beginning with the given pair.
-;;; Pre: di points to the pair.
-	;; save
-	push di
-
-	jmp .start
-
-	.dotstr db " . ",0
-
-	.start:
-
-	;; Iterate through the chain, printing each object's CAR until we
-	;; encounter an object that is not a pair.
-
-	;; Print the opening '('.
-	push di  ; Save the current object.
-	mov dl, '('
-	call putc
-	pop di  ; Restore the current object.
-
-	.loop:
-
-	;; Invariant: the current object is a pair.
-
-	;; Print the current object's CAR.
-	push di  ; Save the current object.
-	mov WORD di, [di+CAR]
-	call print_obj
-	pop di  ; Restore the current object.
-
-	;; Set the current object to its CDR.
-	mov WORD di, [di+CDR]
-
-	;; Exit the loop if the current object is not a pair (so it must be the
-	;; last object in the chain).
-	cmp BYTE [di+TYPE], TYPE_PAIR
-	jne .break
-
-	;; Print a space.
-	push di
-	mov di, ' '
-	call putc
-	pop di
-
-	jmp .loop
-
-	.break:
-
-	;; If the last object in the chain is the empty list, then the chain is
-	;; a list and we're done. Otherwise, the chain is not a list and we
-	;; must indicate this by printing a dot followed by the last object in
-	;; the chain.
-	cmp di, [emptylist]
-	je .end
-
-	push di
-	mov di, .dotstr
-	call print
-	pop di
-
-	call print_obj
-
-	.end:
-
-	;; Print the closing ')'.
-	mov dl, ')'
-	call putc
-
-	;; restore
-	pop di
-
-	ret
+;;; ===========================================================================
+;;; Object construction
+;;; ===========================================================================
 
 make_initial_objs:
 ;;; Construct the initial set of Lisp objects.
@@ -509,84 +390,328 @@ init_freelist:
 
 	ret
 
-;;; TODO: move to debug section
-print_freelist:
-;;; Print the list of free Lisp objects.
+
+;;; ===========================================================================
+;;; Parse
+;;; ===========================================================================
+
+parse:
+;;; Parse a line of input.
+;;; Pre: di points to the input str.
+	;; TODO
+	ret
+
+parse_num:
+;;; Get an integer from its string representation.
+;;; 
+;;; Pre: di points to a string that begins with a char in the range 0x30-0x39
+;;; and terminates on any char outside of that range (e.g. whitespace or an
+;;; arithmetic operator).
+;;; 
+;;; Post: ax contains the integer and cx its number of digits.
+
 	;; save
 	push bx
-	push cx
 	push di
+	push dx
+	push si
 
-	jmp .start
+	mov bx, di
 
-	.colonstr db ": ",0
-	.ptrstr db " -> ",0
-	.nullstr db "NULL",0
-	.freecountstr db "free objects: ",0
+	;; Advance to the end of the string by finding the first char that does
+	;; not represent a digit 0-9.
+	.loop_find_end:
 
-	.start:
+	;; Advance to the next char.
+	inc bx
 
-	call print_newline
+	;; Exit the loop if the char does not represent a digit 0-9.
+	cmp BYTE [bx], 0x30
+	jl .exit
+	cmp BYTE [bx], 0x39
+	jg .exit
 
-	;; Point bx at the head of the free list.
-	mov WORD bx, [freelist]
+	jmp .loop_find_end
 
-	;; Free objects count, only used for printing.
+	.exit:
+
+	;; Now go back through the string, adding up the values of the digits
+	;; until we have our integer:
+
+	;; Running total.
+	xor si, si
+
+	;; Current place in the number, starting at 0.
+	;; 10 raised to the current place gives us the place value.
 	xor cx, cx
 
+	;; Points to 1B before the start of our string (so we know where to
+	;; stop).
+	dec di
+
+	;; Start the loop.
 	jmp .test
-	.loop:
 
-	;; Print current object's position in free list.
-	mov di, cx
-	call print_num
+	.loop_add_digits:
 
-	mov di, .colonstr
-	call print
+	;; Convert the current digit from char to int.
+	movzx dx, [bx]
+	sub dx, 0x30
 
-	;; Print address of current object.
-	mov di, bx
-	call print_num
+	push di  ; save string terminator
+	push si	 ; save running total
 
-	mov di, .ptrstr
-	call print
+	;; Calculate the current place value by finding 10 raised to the
+	;; current place.
+	mov di, 10
+	mov si, cx  ; current place
+	call power
 
-	;; Point bx at the next object.
-	mov WORD bx, [bx+CDR]
+	pop si  ; restore running total
+	pop di  ; restore string terminator
 
-	;; Increment free objects count.
+	jo .return
+
+	;; Multiply the current digit by the place value and add the result to
+	;; our running total.
+	imul dx, ax
+	jo .return
+	add si, dx
+	jo .return
+
+	;; Increment the current place.
 	inc cx
 
-	;; Continue the loop until the current object is NULL.
 	.test:
-	cmp bx, NULL
-	jne .loop
 
-	mov di, .nullstr
-	call print
+	;; Move back one char and continue the loop if we haven't reached the
+	;; pointer to 1B before the start of our string.
+	dec bx
+	cmp bx, di
+	jg .loop_add_digits
 
-	call print_newline
+	;; The final value of our integer.
+	mov ax, si
 
-	;; Print the stored free objects count.
-	mov di, .freecountstr
-	call println
-	mov WORD di, [freecount]
-	call print_num
-
-	call print_newline
+	.return:
 
 	;; restore
+	pop si
+	pop dx
 	pop di
-	pop cx
 	pop bx
 
 	ret
 
 
-lisp_parse:
-;;; Parse a line of input.
-;;; Pre: di points to the input str.
-	;; TODO
+;;; ===========================================================================
+;;; Print
+;;; ===========================================================================
+
+print_obj:
+;;; Print a Lisp object.
+;;; Pre: di points to the object.
+	;; save
+	push di
+
+	jmp .start
+
+	.emptystr db "()",0
+
+	.bugstr:
+	db "You have found a bug: cannot print object of unrecognized type",0
+
+	.start:
+
+	cmp di, [emptylist]
+	jne .skipempty
+	mov di, .emptystr
+	call print
+	jmp .return
+
+	.skipempty:
+
+	cmp BYTE [di+TYPE], TYPE_INT
+	jne .skipint
+	mov WORD di, [di+VAL]
+	call print_num
+	jmp .return
+
+	.skipint:
+
+	cmp BYTE [di+TYPE], TYPE_PAIR
+	jne .skippair
+	call print_pair
+	jmp .return
+
+	.skippair:
+
+	mov di, .bugstr
+	call println
+	jmp lisp_crash
+
+	.return:
+	
+	;; restore
+	pop di
+
+	ret
+
+print_num:
+;;; Print a number.
+;;; Pre: di contains the number.
+
+	;; save
+	push ax
+	push bx
+	push cx
+	push dx
+
+	;; Set ax to the number.
+	mov ax, di
+
+	cmp ax, 0
+	jge .positive
+
+	;; ax < 0
+
+	;; Set ax to its absolute value.
+	xor bx, bx
+	sub bx, ax
+	mov ax, bx
+
+	;; Print a minus sign.
+	push ax  ; Save our number.
+	mov BYTE al, '-'
+	mov ah, 0x0e
+	int 0x10
+	pop ax  ; Restore our number.
+
+	.positive:
+
+	;; ax >= 0
+
+	;; Number of digits pushed onto the stack.
+	xor cx, cx
+
+	.parseloop:
+	
+	;; div divides dx:ax by the operand. ax stores the quotient and dx
+	;; stores the remainder.
+	;; source: https://stackoverflow.com/a/8022107
+
+	;; Divide our number (ax) by 10.
+	xor dx, dx
+	mov bx, 10
+	div bx
+
+	;; Convert the remainder from int to char and push it.
+	add dx, 0x30
+	push dx
+	inc cx  ; Number of digits pushed onto the stack.
+
+	;; Continue the loop if the quotient != 0.
+	cmp ax, 0
+	jne .parseloop
+
+	;; Done parsing the number. Now print it:
+
+	jmp .test
+	.printloop:
+
+	;; Pop a digit and print it.
+	pop dx
+	mov BYTE al, dl
+	mov ah, 0x0e
+	int 0x10
+
+	dec cx  ; Number of digits left on the stack.
+
+	.test:
+	cmp cx, 0
+	jg .printloop
+
+	;; restore
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+
+	ret
+
+;;; TODO: test w/ longer chains
+print_pair:
+;;; Print a chain of Lisp objects beginning with the given pair.
+;;; Pre: di points to the pair.
+	;; save
+	push di
+
+	jmp .start
+
+	.dotstr db " . ",0
+
+	.start:
+
+	;; Iterate through the chain, printing each object's CAR until we
+	;; encounter an object that is not a pair.
+
+	;; Print the opening '('.
+	push di  ; Save the current object.
+	mov dl, '('
+	call putc
+	pop di  ; Restore the current object.
+
+	.loop:
+
+	;; Invariant: the current object is a pair.
+
+	;; Print the current object's CAR.
+	push di  ; Save the current object.
+	mov WORD di, [di+CAR]
+	call print_obj
+	pop di  ; Restore the current object.
+
+	;; Set the current object to its CDR.
+	mov WORD di, [di+CDR]
+
+	;; Exit the loop if the current object is not a pair (so it must be the
+	;; last object in the chain).
+	cmp BYTE [di+TYPE], TYPE_PAIR
+	jne .break
+
+	;; Print a space.
+	push di
+	mov di, ' '
+	call putc
+	pop di
+
+	jmp .loop
+
+	.break:
+
+	;; If the last object in the chain is the empty list, then the chain is
+	;; a list and we're done. Otherwise, the chain is not a list and we
+	;; must indicate this by printing a dot followed by the last object in
+	;; the chain.
+	cmp di, [emptylist]
+	je .end
+
+	push di
+	mov di, .dotstr
+	call print
+	pop di
+
+	call print_obj
+
+	.end:
+
+	;; Print the closing ')'.
+	mov dl, ')'
+	call putc
+
+	;; restore
+	pop di
+
 	ret
 
 
@@ -746,15 +871,19 @@ invalid_command:
 
 	;; The help command prints the first help_list_len commands from the
 	;; command table.
-	help_list_len dw 3  ; TODO: check val is correct
+	help_list_len dw 4  ; TODO: check val is correct
 
 ;;; Command strings:
 
+	freelist_str db CMD_PREFIX,"free",0
 	help_str db CMD_PREFIX,"help",0
 	keymap_str db CMD_PREFIX,"keymap",0
 	reboot_str db CMD_PREFIX,"restart",0
 
 command_table:
+	dw freelist_str
+	dw print_freelist
+
 	dw help_str
 	dw help
 
@@ -768,6 +897,83 @@ command_table:
 	;; string does not match any of the above command strings.
 	dw input_buffer
 	dw invalid_command
+
+
+;;; ===========================================================================
+;;; Debugging utilities
+;;; ===========================================================================
+
+print_freelist:
+;;; Print the list of free Lisp objects.
+	;; save
+	push bx
+	push cx
+	push di
+
+	jmp .start
+
+	.colonstr db ": ",0
+	.ptrstr db " -> ",0
+	.nullstr db "NULL",0
+	.freecountstr db "free objects: ",0
+
+	.start:
+
+	call print_newline
+
+	;; Point bx at the head of the free list.
+	mov WORD bx, [freelist]
+
+	;; Free objects count, only used for printing.
+	xor cx, cx
+
+	jmp .test
+	.loop:
+
+	;; Print current object's position in free list.
+	mov di, cx
+	call print_num
+
+	mov di, .colonstr
+	call print
+
+	;; Print address of current object.
+	mov di, bx
+	call print_num
+
+	mov di, .ptrstr
+	call print
+
+	;; Point bx at the next object.
+	mov WORD bx, [bx+CDR]
+
+	;; Increment free objects count.
+	inc cx
+
+	;; Continue the loop until the current object is NULL.
+	.test:
+	cmp bx, NULL
+	jne .loop
+
+	mov di, .nullstr
+	call print
+
+	call print_newline
+
+	;; Print the stored free objects count.
+	mov di, .freecountstr
+	call println
+	mov WORD di, [freecount]
+	call print_num
+
+	call print_newline
+
+	;; restore
+	pop di
+	pop cx
+	pop bx
+
+	ret
 
 
 ;;; ===========================================================================
@@ -968,110 +1174,6 @@ print:
 	
 	ret
 
-putc:
-;;; Print a char.
-;;; Pre: dl contains the char.
-	;; save
-	push ax
-
-	mov ah, 0x0e
-	mov BYTE al, dl
-	int 0x10
-
-	;; restore
-	pop ax
-
-	ret
-
-println_num:
-;;; Print a number preceded by a newline.
-;;; Pre: di contains the number.
-	call print_newline
-	call print_num
-	ret
-
-print_num:
-;;; Print a number.
-;;; Pre: di contains the number.
-
-	;; save
-	push ax
-	push bx
-	push cx
-	push dx
-
-	;; Set ax to the number.
-	mov ax, di
-
-	cmp ax, 0
-	jge .positive
-
-	;; ax < 0
-
-	;; Set ax to its absolute value.
-	xor bx, bx
-	sub bx, ax
-	mov ax, bx
-
-	;; Print a minus sign.
-	push ax  ; Save our number.
-	mov BYTE al, '-'
-	mov ah, 0x0e
-	int 0x10
-	pop ax  ; Restore our number.
-
-	.positive:
-
-	;; ax >= 0
-
-	;; Number of digits pushed onto the stack.
-	xor cx, cx
-
-	.parseloop:
-	
-	;; div divides dx:ax by the operand. ax stores the quotient and dx
-	;; stores the remainder.
-	;; source: https://stackoverflow.com/a/8022107
-
-	;; Divide our number (ax) by 10.
-	xor dx, dx
-	mov bx, 10
-	div bx
-
-	;; Convert the remainder from int to char and push it.
-	add dx, 0x30
-	push dx
-	inc cx  ; Number of digits pushed onto the stack.
-
-	;; Continue the loop if the quotient != 0.
-	cmp ax, 0
-	jne .parseloop
-
-	;; Done parsing the number. Now print it:
-
-	jmp .test
-	.printloop:
-
-	;; Pop a digit and print it.
-	pop dx
-	mov BYTE al, dl
-	mov ah, 0x0e
-	int 0x10
-
-	dec cx  ; Number of digits left on the stack.
-
-	.test:
-	cmp cx, 0
-	jg .printloop
-
-	;; restore
-	pop dx
-	pop cx
-	pop bx
-	pop ax
-
-	ret
-
 print_newline:
 ;;; Move the cursor to the start of the next line.
 	;; save
@@ -1086,6 +1188,21 @@ print_newline:
 
 	;; restore
 	pop di
+
+	ret
+
+putc:
+;;; Print a char.
+;;; Pre: dl contains the char.
+	;; save
+	push ax
+
+	mov ah, 0x0e
+	mov BYTE al, dl
+	int 0x10
+
+	;; restore
+	pop ax
 
 	ret
 
@@ -1129,108 +1246,6 @@ compare_strings:
 
 	.return:
 	pop bx  ; restore
-	ret
-
-parse_num:
-;;; Get an integer from its string representation.
-;;; 
-;;; Pre: di points to a string that begins with a char in the range 0x30-0x39
-;;; and terminates on any char outside of that range (e.g. whitespace or an
-;;; arithmetic operator).
-;;; 
-;;; Post: ax contains the integer and cx its number of digits.
-
-	;; save
-	push bx
-	push di
-	push dx
-	push si
-
-	mov bx, di
-
-	;; Advance to the end of the string by finding the first char that does
-	;; not represent a digit 0-9.
-	.loop_find_end:
-
-	;; Advance to the next char.
-	inc bx
-
-	;; Exit the loop if the char does not represent a digit 0-9.
-	cmp BYTE [bx], 0x30
-	jl .exit
-	cmp BYTE [bx], 0x39
-	jg .exit
-
-	jmp .loop_find_end
-
-	.exit:
-
-	;; Now go back through the string, adding up the values of the digits
-	;; until we have our integer:
-
-	;; Running total.
-	xor si, si
-
-	;; Current place in the number, starting at 0.
-	;; 10 raised to the current place gives us the place value.
-	xor cx, cx
-
-	;; Points to 1B before the start of our string (so we know where to
-	;; stop).
-	dec di
-
-	;; Start the loop.
-	jmp .test
-
-	.loop_add_digits:
-
-	;; Convert the current digit from char to int.
-	movzx dx, [bx]
-	sub dx, 0x30
-
-	push di  ; save string terminator
-	push si	 ; save running total
-
-	;; Calculate the current place value by finding 10 raised to the
-	;; current place.
-	mov di, 10
-	mov si, cx  ; current place
-	call power
-
-	pop si  ; restore running total
-	pop di  ; restore string terminator
-
-	jo .return
-
-	;; Multiply the current digit by the place value and add the result to
-	;; our running total.
-	imul dx, ax
-	jo .return
-	add si, dx
-	jo .return
-
-	;; Increment the current place.
-	inc cx
-
-	.test:
-
-	;; Move back one char and continue the loop if we haven't reached the
-	;; pointer to 1B before the start of our string.
-	dec bx
-	cmp bx, di
-	jg .loop_add_digits
-
-	;; The final value of our integer.
-	mov ax, si
-
-	.return:
-
-	;; restore
-	pop si
-	pop dx
-	pop di
-	pop bx
-
 	ret
 
 
@@ -1303,4 +1318,4 @@ power:
 	align OBJ_SIZE
 	obj_heap times OBJ_HEAP_SIZE db 0
 
-os_end:	
+lisp_end:	
