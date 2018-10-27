@@ -428,7 +428,7 @@ parse:
 	jl .skipint
 	cmp BYTE [di], 0x39
 	jg .skipint
-	call parse_int_obj
+	call parse_num
 	jmp .return
 
 	.skipint:
@@ -445,34 +445,15 @@ parse:
 	.return:
 	ret
 
-;;; TODO: fulfill non-space post
-;;; TODO: on error
-parse_int_obj:
+;;; TODO:
+;;; - fulfill non-space post
+parse_num:
 ;;; Convert part of the input str to a Lisp int.
 ;;; Pre: di points to a char in the range 0x30-0x39 in the input str.
 ;;; Post:
 ;;; - ax points to the parsed object.
 ;;; - di points to the first non-space char after the parsed substr.
 ;;; On error: Return NULL.
-	call parse_num
-
-	push di  ; Save input pointer.
-	mov di, ax
-	call get_int
-	pop di  ; Restore input pointer.
-
-	ret
-
-;;; TODO:
-;;; - error if doesn't end on (, ), space, or 0.
-;;; - fulfill non-space post
-parse_num:
-;;; Get an integer from its string representation.
-;;; 
-;;; Pre: di points to an input str char in the range 0x30-0x39.
-;;; Post:
-;;; - ax contains the int.
-;;; - di points to the first non-space char after the parsed substr.
 
 	;; save
 	push bx
@@ -490,13 +471,27 @@ parse_num:
 	;; Advance to the next char.
 	inc bx
 
-	;; Exit the loop if the char does not represent a digit 0-9.
+	cmp BYTE [bx], '('
+	je .exit
+	cmp BYTE [bx], ')'
+	je .exit
+	cmp BYTE [bx], ' '
+	je .exit
+	cmp BYTE [bx], 0
+	je .exit
+
 	cmp BYTE [bx], 0x30
-	jl .exit
+	jl .error
 	cmp BYTE [bx], 0x39
-	jg .exit
+	jg .error
 
 	jmp .loop_find_end
+
+	.error:
+	mov di, bx
+	call badinput
+	mov ax, NULL
+	jmp .return
 
 	.exit:
 
@@ -555,8 +550,9 @@ parse_num:
 	cmp bx, di
 	jg .loop_add_digits
 
-	;; The final value of our integer.
-	mov ax, si
+	;; Construct the int object.
+	mov di, si  ; The final value of the parsed int.
+	call get_int
 
 	.return:
 
