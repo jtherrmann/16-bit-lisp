@@ -198,6 +198,8 @@ main:
 	db NEWLINE
 	db 0
 
+	.expected_end_str db "Parse error: expected end of input",0
+
 	.prompt db "> ",0
 
 	.start:
@@ -234,9 +236,17 @@ main:
 	cmp ax, NULL
 	je .loop
 
-	;; TODO: error if [di] not 0
+	;; Error if we encounter more input after the parsed expression.
+	cmp BYTE [di], 0
+	je .print
+	call badinput
+	mov di, .expected_end_str
+	call println
+	jmp .loop
 
 	;; TODO: comment: print (the parsed expr? the result of eval?)
+	.print:
+	
 	mov di, ax
 	call print_newline
 	call print_obj
@@ -446,7 +456,7 @@ parse:
 	ret
 
 ;;; TODO:
-;;; - fulfill non-space post
+;;; - detect overflow
 parse_num:
 ;;; Convert part of the input str to a Lisp int.
 ;;; Pre: di points to a char in the range 0x30-0x39 in the input str.
@@ -458,9 +468,15 @@ parse_num:
 	;; save
 	push bx
 	push cx
-	push di
 	push dx
 	push si
+
+	jmp .start
+
+	.strend dw 0x0000
+	.badinputstr db "Parse error: non-numeric char",0
+
+	.start:
 
 	mov bx, di
 
@@ -490,10 +506,15 @@ parse_num:
 	.error:
 	mov di, bx
 	call badinput
+	mov di, .badinputstr
+	call println
 	mov ax, NULL
 	jmp .return
 
 	.exit:
+
+	;; Save the end of the parsed substr so we can fulfill our post.
+	mov WORD [.strend], bx
 
 	;; Now go back through the string, adding up the values of the digits
 	;; until we have our integer:
@@ -554,12 +575,15 @@ parse_num:
 	mov di, si  ; The final value of the parsed int.
 	call get_int
 
+	;; Fulfill post.
+	mov WORD di, [.strend]
+	call skipspace
+
 	.return:
 
 	;; restore
 	pop si
 	pop dx
-	pop di
 	pop cx
 	pop bx
 
