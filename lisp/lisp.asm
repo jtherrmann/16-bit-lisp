@@ -226,10 +226,17 @@ main:
 
 	;; Parse the input expression.
 	.parse:
+
+	;; Fulfill parse's pre.
+	call skipspace
+
 	call parse
 	cmp ax, NULL
 	je .loop
 
+	;; TODO: error if [di] not 0
+
+	;; TODO: comment: print (the parsed expr? the result of eval?)
 	mov di, ax
 	call print_newline
 	call print_obj
@@ -402,7 +409,6 @@ init_freelist:
 ;;; Parse
 ;;; ===========================================================================
 
-;;; TODO: fulfill non-space pre in main
 ;;; TODO: fulfill non-space post
 parse:
 ;;; Convert part of the input str to a Lisp object.
@@ -458,15 +464,15 @@ parse_int_obj:
 	ret
 
 ;;; TODO:
-;;; - update pre/post behavior
 ;;; - error if doesn't end on (, ), space, or 0.
+;;; - fulfill non-space post
 parse_num:
 ;;; Get an integer from its string representation.
 ;;; 
-;;; Pre: di points to a string that begins with a char in the range 0x30-0x39
-;;; and terminates on any char outside of that range (e.g. whitespace or an
-;;; arithmetic operator).
-;;; Post: ax contains the int.
+;;; Pre: di points to an input str char in the range 0x30-0x39.
+;;; Post:
+;;; - ax contains the int.
+;;; - di points to the first non-space char after the parsed substr.
 
 	;; save
 	push bx
@@ -560,6 +566,20 @@ parse_num:
 	pop di
 	pop cx
 	pop bx
+
+	ret
+
+skipspace:
+;;; Move to the next non-space char in the input str.
+;;; Pre: di points to the current position in the input str.
+;;; Post: di points to the next non-space char.
+	jmp .test
+	.loop:
+	inc di
+
+	.test:
+	cmp BYTE [di], ' '
+	je .loop
 
 	ret
 
