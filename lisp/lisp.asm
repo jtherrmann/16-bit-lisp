@@ -419,7 +419,6 @@ init_freelist:
 ;;; Parse
 ;;; ===========================================================================
 
-;;; TODO: fulfill non-space post
 parse:
 ;;; Convert part of the input str to a Lisp object.
 ;;; Pre: di points to a non-space char in the input str.
@@ -455,8 +454,6 @@ parse:
 	.return:
 	ret
 
-;;; TODO:
-;;; - detect overflow
 parse_num:
 ;;; Convert part of the input str to a Lisp int.
 ;;; Pre: di points to a char in the range 0x30-0x39 in the input str.
@@ -473,15 +470,20 @@ parse_num:
 
 	jmp .start
 
+	.strbegin dw 0x0000
 	.strend dw 0x0000
+
 	.badinputstr db "Parse error: non-numeric char",0
+	.overflowstr db "Parse error: number exceeds size limit",0
 
 	.start:
 
-	mov bx, di
+	;; Save the position of the first char for reporting overflow.
+	mov WORD [.strbegin], di
 
 	;; Advance to the end of the string by finding the first char that does
 	;; not represent a digit 0-9.
+	mov bx, di
 	.loop_find_end:
 
 	;; Advance to the next char.
@@ -551,14 +553,14 @@ parse_num:
 	pop si  ; restore running total
 	pop di  ; restore string terminator
 
-	jo .return
+	jo .overflow
 
 	;; Multiply the current digit by the place value and add the result to
 	;; our running total.
 	imul dx, ax
-	jo .return
+	jo .overflow
 	add si, dx
-	jo .return
+	jo .overflow
 
 	;; Increment the current place.
 	inc cx
@@ -578,6 +580,14 @@ parse_num:
 	;; Fulfill post.
 	mov WORD di, [.strend]
 	call skipspace
+	jmp .return
+
+	.overflow:
+	mov WORD di, [.strbegin]
+	call badinput
+	mov di, .overflowstr
+	call println
+	mov ax, NULL
 
 	.return:
 
