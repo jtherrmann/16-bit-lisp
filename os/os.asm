@@ -2,6 +2,7 @@
 ;;; - address TODO/FIXME in file
 ;;; - make sure procedures preserve ax when they call other procedures that
 ;;;   return in ax
+;;; - rename os/os.asm to something like lisp/lisp.asm
 
 	;; Null pointer.
 	%define NULL 0x0000
@@ -12,16 +13,15 @@
 	;; Prefix for interpreter commands.
 	%define CMD_PREFIX ':'
 
-	;; Define Lisp's empty list object as the null pointer.
-	%define EMPTY NULL
-
 	;; Lisp object and object heap sizes.
 	%define OBJ_SIZE 8
 	%define OBJ_HEAP_SIZE 80  ; TODO: bigger
 	%define LAST_OBJ OBJ_HEAP_SIZE - OBJ_SIZE
 
 	;; Lisp object types.
-	%define TYPE_INT 0x01
+	%define TYPE_UNIQUE 0x01
+	%define TYPE_INT 0x02
+	%define TYPE_PAIR 0x03
 
 	;; Lisp object field offsets.
 	%define TYPE 0
@@ -138,24 +138,58 @@ lisp_crash:
 lisp_start:
 ;;; Start the Lisp interpreter.
 	call init_freelist
+	call make_initial_objs
 
+	;; --------------------------------------------------------------------
 	;; TODO: temp
+
 	push ax
 	push di
-	mov di, 0
+
+	jmp .skiptestobjs
+
+	.test1 dw 0x0000
+	.test2 dw 0x0000
+	.test3 dw 0x0000
+
+	.skiptestobjs:
+
+	mov di, 111
 	call get_int
-	mov di, ax
+	mov [.test1], ax
+
+	mov di, 222
+	call get_int
+	mov [.test2], ax
+
+	mov di, [.test1]
+	mov si, [.test2]
+	;; mov si, [emptylist]
+	call cons
+	mov [.test3], ax
+
 	call print_newline
+	mov di, [emptylist]
 	call print_obj
+
 	call print_newline
+	mov di, [.test1]
+	call print_obj
+
+	call print_newline
+	mov di, [.test2]
+	call print_obj
+
+	call print_newline
+	mov di, [.test3]
+	call print_obj
+
 	call print_newline
 	call print_freelist
-	call print_newline
-	mov di, EMPTY
-	call print_obj
-	call print_newline
+
 	pop di
 	pop ax
+	;; --------------------------------------------------------------------
 
 	jmp .start
 
@@ -211,7 +245,7 @@ print_obj:
 
 	.start:
 
-	cmp di, EMPTY
+	cmp di, [emptylist]
 	jne .skipempty
 	mov di, .emptystr
 	call print
@@ -227,6 +261,13 @@ print_obj:
 
 	.skipint:
 
+	cmp BYTE [di+TYPE], TYPE_PAIR
+	jne .skippair
+	call print_pair
+	jmp .return
+
+	.skippair:
+
 	mov di, .bugstr
 	call println
 	jmp lisp_crash
@@ -235,6 +276,103 @@ print_obj:
 	
 	;; restore
 	pop di
+
+	ret
+
+;;; TODO: test w/ longer chains
+print_pair:
+;;; Print a chain of Lisp objects beginning with the given pair.
+;;; Pre: di points to the pair.
+	;; save
+	push di
+
+	jmp .start
+
+	.dotstr db " . ",0
+
+	.start:
+
+	;; Iterate through the chain, printing each object's CAR until we
+	;; encounter an object that is not a pair.
+
+	;; Print the opening '('.
+	push di  ; Save the current object.
+	mov dl, '('
+	call putc
+	pop di  ; Restore the current object.
+
+	.loop:
+
+	;; Invariant: the current object is a pair.
+
+	;; Print the current object's CAR.
+	push di  ; Save the current object.
+	mov WORD di, [di+CAR]
+	call print_obj
+	pop di  ; Restore the current object.
+
+	;; Set the current object to its CDR.
+	mov WORD di, [di+CDR]
+
+	;; Exit the loop if the current object is not a pair (so it must be the
+	;; last object in the chain).
+	cmp BYTE [di+TYPE], TYPE_PAIR
+	jne .break
+
+	;; Print a space.
+	push di
+	mov di, ' '
+	call putc
+	pop di
+
+	jmp .loop
+
+	.break:
+
+	;; If the last object in the chain is the empty list, then the chain is
+	;; a list and we're done. Otherwise, the chain is not a list and we
+	;; must indicate this by printing a dot followed by the last object in
+	;; the chain.
+	cmp di, [emptylist]
+	je .end
+
+	push di
+	mov di, .dotstr
+	call print
+	pop di
+
+	call print_obj
+
+	.end:
+
+	;; Print the closing ')'.
+	mov dl, ')'
+	call putc
+
+	;; restore
+	pop di
+
+	ret
+
+make_initial_objs:
+;;; Construct the initial set of Lisp objects.
+	call make_emptylist
+	ret
+
+make_emptylist:
+;;; Construct the Lisp empty list object.
+	;; save
+	push ax
+	push di
+
+	mov BYTE dl, TYPE_UNIQUE
+	call get_obj
+
+	mov WORD [emptylist], ax
+
+	;; restore
+	pop di
+	pop ax
 
 	ret
 
@@ -252,7 +390,27 @@ get_int:
 
 	mov bx, ax
 	mov WORD [bx+VAL], di
-	mov ax, bx
+
+	;; restore
+	pop bx
+
+	ret
+
+cons:
+;;; Construct a Lisp pair.
+;;; Pre: di and si contain car and cdr.
+;;; Post: ax points to the object.
+	;; save
+	push bx
+
+	push di  ; Save car.
+	mov BYTE dl, TYPE_PAIR
+	call get_obj
+	pop di  ; Restore car.
+
+	mov bx, ax
+	mov WORD [bx+CAR], di
+	mov WORD [bx+CDR], si
 
 	;; restore
 	pop bx
@@ -811,6 +969,21 @@ print:
 	
 	ret
 
+putc:
+;;; Print a char.
+;;; Pre: dl contains the char.
+	;; save
+	push ax
+
+	mov ah, 0x0e
+	mov BYTE al, dl
+	int 0x10
+
+	;; restore
+	pop ax
+
+	ret
+
 println_num:
 ;;; Print a number preceded by a newline.
 ;;; Pre: di contains the number.
@@ -1124,7 +1297,10 @@ power:
 	freelist dw 0x0000
 	freecount dw 0x0000
 
+	emptylist dw 0x0000
+
 	;; TODO: comment why align (use low bits, e.g. mark in mark-and-sweep)
+	;; TODO: may only need align 2; see notebook
 	align OBJ_SIZE
 	obj_heap times OBJ_HEAP_SIZE db 0
 
