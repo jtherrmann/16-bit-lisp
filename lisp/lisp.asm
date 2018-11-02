@@ -472,11 +472,11 @@ parse_list:
 ;;; On error: Return NULL.
 
 	;; save
+	push bx
 	push si
 
 	jmp .start
 
-	.car dw 0x0000
 	.incomplete_list_str db "Parse error: incomplete list",0
 
 	.start:
@@ -520,12 +520,10 @@ parse_list:
 	je .return
 
 	;; Save car.
-	mov WORD [.car], ax
+	mov bx, ax
 
 	;; Parse the list's cdr, which must be another list.
-	push WORD [.car]
 	call parse_list
-	pop WORD [.car]
 
 	;; Check if parse_list signaled an error.
 	cmp ax, NULL
@@ -534,8 +532,8 @@ parse_list:
 	push di  ; Save input pointer.
 
 	;; Construct the list object.
-	mov WORD di, [.car]
-	mov WORD si, ax  ; cdr
+	mov di, bx  ; car
+	mov si, ax  ; cdr
 	call cons
 
 	pop di  ; Restore input pointer.
@@ -544,6 +542,7 @@ parse_list:
 
 	;; Restore.
 	pop si
+	pop bx
 
 	ret
 
