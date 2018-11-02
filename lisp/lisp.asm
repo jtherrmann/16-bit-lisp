@@ -433,6 +433,15 @@ parse:
 
 	.start:
 
+	cmp BYTE [di], '('
+	jne .skiplist
+	inc di
+	call skipspace
+	call parse_list
+	jmp .return
+
+	.skiplist:
+
 	cmp BYTE [di], 0x30
 	jl .skipint
 	cmp BYTE [di], 0x39
@@ -452,6 +461,90 @@ parse:
 	mov ax, NULL
 
 	.return:
+	ret
+
+parse_list:
+;;; Convert part of the input str to a Lisp list.
+;;; Pre: di points to a non-space char in the input str.
+;;; Post:
+;;; - ax points to the parsed object.
+;;; - di points to the first non-space char after the parsed substr.
+;;; On error: Return NULL.
+
+	;; save
+	push si
+
+	jmp .start
+
+	.car dw 0x0000
+	.incomplete_list_str db "Parse error: incomplete list",0
+
+	.start:
+
+	;; If the current char is ')', we've reached the end of the list.
+	cmp BYTE [di], ')'
+	jne .not_end
+
+	;; Fulfill post.
+	inc di
+	call skipspace
+
+	;; Return the empty list object.
+	mov ax, [emptylist]
+	jmp .return
+
+	.not_end:
+
+	;; If the current char is 0, the list is incomplete.
+	cmp BYTE [di], 0
+	jne .not_incomplete
+
+	;; Notify the user.
+	call badinput
+	push di  ; Save input pointer.
+	mov di, .incomplete_list_str
+	call println
+	pop di  ; Restore input pointer.
+
+	;; Return NULL.
+	mov ax, NULL
+	jmp .return
+
+	.not_incomplete:
+
+	;; Parse the list's car.
+	call parse
+
+	;; Check if parse signaled an error.
+	cmp ax, NULL
+	je .return
+
+	;; Save car.
+	mov WORD [.car], ax
+
+	;; Parse the list's cdr, which must be another list.
+	push WORD [.car]
+	call parse_list
+	pop WORD [.car]
+
+	;; Check if parse_list signaled an error.
+	cmp ax, NULL
+	je .return
+
+	push di  ; Save input pointer.
+
+	;; Construct the list object.
+	mov WORD di, [.car]
+	mov WORD si, ax  ; cdr
+	call cons
+
+	pop di  ; Restore input pointer.
+
+	.return:
+
+	;; Restore.
+	pop si
+
 	ret
 
 parse_num:
@@ -795,7 +888,6 @@ print_num:
 
 	ret
 
-;;; TODO: test w/ longer chains
 print_pair:
 ;;; Print a chain of Lisp objects beginning with the given pair.
 ;;; Pre: di points to the pair.
@@ -836,10 +928,10 @@ print_pair:
 	jne .break
 
 	;; Print a space.
-	push di
-	mov di, ' '
+	push di  ; Save the current object.
+	mov dl, ' '
 	call putc
-	pop di
+	pop di  ; Restore the current object.
 
 	jmp .loop
 
