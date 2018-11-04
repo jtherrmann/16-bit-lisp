@@ -307,19 +307,17 @@ get_sym:
 ;;;
 ;;; Rather than store a pointer to the string that represents its name, the
 ;;; constructed symbol object stores the string directly. That is, the space
-;;; allocated for the symbol object actually contains the char array that
-;;; represents the symbol's name. The obvious disadvantage of this solution is
-;;; that the size of the symbol's name cannot exceed OBJ_SIZE.
+;;; allocated for the symbol object also stores the char array that represents
+;;; the symbol's name. The obvious disadvantage of this solution is that the
+;;; size of the symbol's name cannot exceed OBJ_SIZE.
 ;;; 
-;;; To overcome this limitation, we would need to implement a separate heap for
-;;; strings. It's beyond the scope of this project to handle memory
-;;; fragmentation, so the easiest solution would be to partition the heap into
+;;; In order to overcome this limitation we would need to implement a separate
+;;; heap for strings. Handling memory fragmentation is beyond the scope of this
+;;; project, so the easiest workaround would be to partition the heap into
 ;;; equal-sized chunks and allocate one chunk per string, as we do for Lisp
-;;; objects. However, we would need to choose a relatively small chunk size
-;;; (comparable to OBJ_SIZE) in order to conserve the little memory available
-;;; to us in 16-bit mode, so we would lose the advantage of allowing symbol
-;;; names to exceed OBJ_SIZE. Thus, symbols may as well store their names
-;;; directly.
+;;; objects. However, we would need to choose a small chunk size in order to
+;;; conserve the little memory available to us in 16-bit mode, so we would lose
+;;; the advantage of allowing symbol names to exceed OBJ_SIZE.
 ;;; 
 ;;; Pre:
 ;;; - di points to the symbol str.
