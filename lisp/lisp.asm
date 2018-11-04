@@ -509,11 +509,16 @@ init_freelist:
 
 parse:
 ;;; Convert part of the input str to a Lisp object.
-;;; Pre: di points to a non-space char in the input str.
+;;; 
+;;; Pre:
+;;; - di points to a non-space char in the input str.
+;;; 
 ;;; Post:
 ;;; - ax points to the parsed object.
 ;;; - di points to the first non-space char after the parsed substr.
-;;; On error: Return NULL.
+;;; 
+;;; On error:
+;;; - Return NULL.
 
 	jmp .start
 
@@ -521,8 +526,11 @@ parse:
 
 	.start:
 
+	;; List:
+
 	cmp BYTE [di], '('
 	jne .skiplist
+
 	inc di
 	call skipspace
 	call parse_list
@@ -530,21 +538,37 @@ parse:
 
 	.skiplist:
 
+	;; Symbol:
+
+	call is_sym_start_char
+	cmp ax, 0
+	je .skipsym
+
+	call parse_sym
+	jmp .return
+
+	.skipsym:
+
+	;; Int:
+
 	cmp BYTE [di], 0x30
 	jl .skipint
 	cmp BYTE [di], 0x39
 	jg .skipint
+
 	call parse_num
 	jmp .return
 
 	.skipint:
 
+	;; Unrecognized type:
+
 	call badinput
 
-	push di
+	push di  ; Save input pointer.
 	mov di, .badinputstr
 	call println
-	pop di
+	pop di  ; Restore input pointer.
 
 	mov ax, NULL
 
@@ -632,6 +656,200 @@ parse_list:
 	pop si
 	pop bx
 
+	ret
+
+parse_sym:
+;;; Convert part of the input str to a Lisp symbol.
+;;; 
+;;; Pre:
+;;; - di points to a char, in the input str, for which is_sym_start_char is
+;;;   true.
+;;; 
+;;; Post:
+;;; - di points to the first non-space char after the parsed substr.
+;;; 
+;;; On error:
+;;; - Return NULL.
+
+	;; save
+	push bx
+	push cx
+
+	jmp .start
+
+	;; Temporary symbol str buffer.
+	.symstr times MAX_NAME_SIZE+1 db 0
+
+	.badinputstr db "Parse error: symbol contains invalid char",0
+	.toolongstr db "Parse error: symbol exceeds maximum length",0
+
+	.start:
+
+	;; Copy the input symbol str to the temporary buffer.
+
+	;; Index into the temporary buffer.
+	xor bx, bx
+
+	.loop:
+
+	;; Break if we encounter the beginning of a list.
+	cmp BYTE [di], '('
+	je .break
+
+	;; Break if we encounter the end of a list.
+	cmp BYTE [di], ')'
+	je .break
+
+	;; Break if we encounter a space.
+	cmp BYTE [di], ' '
+	je .break
+
+	;; Break if we encounter the end of the input expression.
+	cmp BYTE [di], 0
+	je .break
+
+	;; Check if we've exceeded the maximum allowable size for symbol names.
+	cmp bx, MAX_NAME_SIZE
+	je .toolong
+
+	;; Check if the current char is a valid symbol char.
+	call is_sym_char
+	cmp ax, 0
+	je .badinput
+
+	;; Copy the current char from the input symbol str to the temporary
+	;; buffer.
+	mov BYTE cl, [di]
+	mov BYTE [.symstr + bx], cl
+
+	inc di	; Advance to the next char in the input symbol str.
+	inc bx  ; Increment temporary buffer index.
+	jmp .loop
+
+	;; The input symbol str is too long. Notify the user and return NULL.
+	.toolong:
+
+	call badinput
+
+	push di  ; Save input pointer.
+	mov di, .toolongstr
+	call println
+	pop di	 ; Restore input pointer.
+
+	mov ax, NULL
+	jmp .return
+
+	;; The input symbol str contains an invalid char. Notify the user and
+	;; return NULL.
+	.badinput:
+
+	call badinput
+
+	push di  ; Save input pointer.
+	mov di, .badinputstr
+	call println
+	pop di	 ; Restore input pointer.
+
+	mov ax, NULL
+	jmp .return
+
+	;; Exit the loop.
+	.break:
+
+	;; Append a terminating 0 to the symbol str stored in the temporary
+	;; buffer.
+	mov BYTE [.symstr + bx], 0
+
+	;; Fulfill post.
+	call skipspace
+
+	;; Construct the symbol object.
+	push di  ; Save input pointer.
+	mov di, .symstr
+	call get_sym
+	pop di  ; Restore input pointer.
+
+	.return:
+	
+	;; restore
+	pop cx
+	pop bx
+
+	ret
+
+is_sym_char:
+;;; Return whether a symbol can contain the given char.
+;;;
+;;; A valid symbol char is '?', a digit in the range '0'-'9', or any char for
+;;; which is_sym_start_char returns true.
+;;; 
+;;; Pre:
+;;; - di points to the char.
+;;; 
+;;; Post:
+;;; - ax is 1 (true) or 0 (false).
+
+	call is_sym_start_char
+	cmp ax, 0
+	jne .true
+
+	cmp BYTE [di], '?'
+	je .true
+
+	cmp BYTE [di], 0x30
+	jl .false
+
+	cmp BYTE [di], 0x39
+	jg .false
+
+	.true:
+	mov ax, 1
+	jmp .return
+
+	.false:
+	mov ax, 0
+
+	.return:
+	ret
+
+is_sym_start_char:
+;;; Return whether a symbol can start with the given char.
+;;;
+;;; A valid symbol starting char is '-' or a lowercase or uppercase letter.
+;;; 
+;;; Pre:
+;;; - di points to the char.
+;;; 
+;;; Post:
+;;; - ax is 1 (true) or 0 (false).
+
+	cmp BYTE [di], '-'
+	je .true
+
+	cmp BYTE [di], 'a'
+	jl .not_lowercase
+
+	cmp BYTE [di], 'z'
+	jg .not_lowercase
+
+	jmp .true
+
+	.not_lowercase:
+
+	cmp BYTE [di], 'A'
+	jl .false
+
+	cmp BYTE [di], 'Z'
+	jg .false
+
+	.true:
+	mov ax, 1
+	jmp .return
+
+	.false:
+	mov ax, 0
+
+	.return:
 	ret
 
 parse_num:
