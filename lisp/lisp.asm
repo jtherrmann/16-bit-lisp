@@ -780,8 +780,8 @@ parse_sym:
 is_sym_char:
 ;;; Return whether a symbol can contain the given char.
 ;;;
-;;; A valid symbol char is '?', a digit in the range '0'-'9', or any char for
-;;; which is_sym_start_char returns true.
+;;; A valid symbol char is '-', '?', a digit in the range '0'-'9', or any char
+;;; for which is_sym_start_char returns true.
 ;;; 
 ;;; Pre:
 ;;; - di points to the char.
@@ -792,6 +792,9 @@ is_sym_char:
 	call is_sym_start_char
 	cmp ax, 0
 	jne .true
+
+	cmp BYTE [di], '-'
+	je .true
 
 	cmp BYTE [di], '?'
 	je .true
@@ -815,16 +818,13 @@ is_sym_char:
 is_sym_start_char:
 ;;; Return whether a symbol can start with the given char.
 ;;;
-;;; A valid symbol starting char is '-' or a lowercase or uppercase letter.
+;;; A symbol can start with any lowercase or uppercase letter.
 ;;; 
 ;;; Pre:
 ;;; - di points to the char.
 ;;; 
 ;;; Post:
 ;;; - ax is 1 (true) or 0 (false).
-
-	cmp BYTE [di], '-'
-	je .true
 
 	cmp BYTE [di], 'a'
 	jl .not_lowercase
