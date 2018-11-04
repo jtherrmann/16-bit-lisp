@@ -20,7 +20,8 @@
 	;; Lisp object types.
 	%define TYPE_UNIQUE 0x01
 	%define TYPE_INT 0x02
-	%define TYPE_PAIR 0x03
+	%define TYPE_SYMBOL 0x03
+	%define TYPE_PAIR 0x04
 
 	;; Lisp object field offsets.
 	%define TYPE 0
@@ -28,6 +29,9 @@
 	%define NAME 1
 	%define CAR 1
 	%define CDR 3
+
+	;; Maximum size for a Lisp symbol's name.
+	%define MAX_NAME_SIZE OBJ_SIZE - NAME
 
 	BITS 16
 
@@ -151,25 +155,23 @@ main:
 	.test2 dw 0x0000
 	.test3 dw 0x0000
 
+	.symstr1 dw "abcdefg",0
+	.symstr2 dw "ttt",0
+	.symstr3 dw "bl",0
+
 	.skiptestobjs:
 
-	mov di, 111
-	call get_int
+	mov di, .symstr1
+	call get_sym
 	mov [.test1], ax
 
-	mov di, 222
-	call get_int
+	mov di, .symstr2
+	call get_sym
 	mov [.test2], ax
 
-	mov di, [.test1]
-	mov si, [.test2]
-	;; mov si, [emptylist]
-	call cons
+	mov di, .symstr3
+	call get_sym
 	mov [.test3], ax
-
-	call print_newline
-	mov di, [emptylist]
-	call print_obj
 
 	call print_newline
 	mov di, [.test1]
@@ -296,6 +298,92 @@ get_int:
 	mov WORD [bx+VAL], di
 
 	;; restore
+	pop bx
+
+	ret
+
+get_sym:
+;;; Construct a Lisp symbol.
+;;;
+;;; Rather than store a pointer to the string that represents its name, the
+;;; constructed symbol object stores the string directly. That is, the space
+;;; allocated for the symbol object actually contains the char array that
+;;; represents the symbol's name. The obvious disadvantage of this solution is
+;;; that the size of the symbol's name cannot exceed OBJ_SIZE.
+;;; 
+;;; To overcome this limitation, we would need to implement a separate heap for
+;;; strings. It's beyond the scope of this project to handle memory
+;;; fragmentation, so the easiest solution would be to partition the heap into
+;;; equal-sized chunks and allocate one chunk per string, as we do for Lisp
+;;; objects. However, we would need to choose a relatively small chunk size
+;;; (comparable to OBJ_SIZE) in order to conserve the little memory available
+;;; to us in 16-bit mode, so we would lose the advantage of allowing symbol
+;;; names to exceed OBJ_SIZE. Thus, symbols may as well store their names
+;;; directly.
+;;; 
+;;; Pre:
+;;; - di points to the symbol str.
+;;; - The symbol str has length where 0 < length <= MAX_NAME_SIZE.
+;;; - The symbol str terminates on 0.
+;;; 
+;;; Post:
+;;; - ax points to the symbol object.
+;;; - The copied symbol str begins at the address of the symbol + NAME.
+;;; - The copied symbol str terminates on 0 unless its length is MAX_NAME_SIZE.
+
+	;; save
+	push bx
+	push cx
+	push di
+	push si
+
+	;; Construct the symbol object.
+	push di  ; Save symbol str.
+	mov BYTE dl, TYPE_SYMBOL
+	call get_obj
+	pop di  ; Restore symbol str.
+
+	;; Iterate through the given symbol str and copy it into the symbol
+	;; object.
+
+	;; Set si to the address of the symbol + NAME.
+	mov si, ax
+	add si, NAME
+
+	;; Index into the symbol object.
+	xor bx, bx
+
+	jmp .test
+	.loop:
+
+	;; Copy the current char from the given symbol str to the current
+	;; position in the symbol object.
+	mov BYTE cl, [di]
+	mov BYTE [si+bx], cl
+
+	inc di  ; Advance to the next char in the given symbol str.
+	inc bx  ; Increment index.
+
+	;; Continue the loop until we encounter the given symbol str's
+	;; terminating 0.
+	.test:
+	cmp BYTE [di], 0
+	jne .loop
+
+	;; Skip appending the terminating 0 if the symbol str has length equal
+	;; to MAX_NAME_SIZE.
+	cmp bx, MAX_NAME_SIZE
+	je .return
+
+	;; Append the terminating 0.
+	mov BYTE [si+bx], 0
+
+	.return:
+
+	;; restore
+	pop si
+	pop di
+	pop cx
 	pop bx
 
 	ret
@@ -758,7 +846,10 @@ badinput:
 
 print_obj:
 ;;; Print a Lisp object.
-;;; Pre: di points to the object.
+;;; 
+;;; Pre:
+;;; - di points to the object.
+
 	;; save
 	push di
 
@@ -771,29 +862,49 @@ print_obj:
 
 	.start:
 
+	;; Empty list:
+	
 	cmp di, [emptylist]
 	jne .skipempty
+
 	mov di, .emptystr
 	call print
 	jmp .return
 
 	.skipempty:
 
+	;; Pair:
+
+	cmp BYTE [di+TYPE], TYPE_PAIR
+	jne .skippair
+
+	call print_pair
+	jmp .return
+
+	.skippair:
+
+	;; Symbol:
+
+	cmp BYTE [di+TYPE], TYPE_SYMBOL
+	jne .skipsym
+
+	call print_sym
+	jmp .return
+
+	.skipsym:
+
+	;; Int:
+
 	cmp BYTE [di+TYPE], TYPE_INT
 	jne .skipint
+
 	mov WORD di, [di+VAL]
 	call print_num
 	jmp .return
 
 	.skipint:
 
-	cmp BYTE [di+TYPE], TYPE_PAIR
-	jne .skippair
-	call print_pair
-	jmp .return
-
-	.skippair:
-
+	;; Handle unrecognized type.
 	mov di, .bugstr
 	call println
 	jmp lisp_crash
@@ -803,6 +914,51 @@ print_obj:
 	;; restore
 	pop di
 
+	ret
+
+print_sym:
+;;; Print a symbol.
+;;; 
+;;; Pre:
+;;; - di points to the symbol.
+;;; - The symbol's name str has length where 0 < length <= MAX_NAME_SIZE.
+;;; - The symbol's name str terminates on 0 unless its length is MAX_NAME_SIZE.
+
+	;; save
+	push ax
+	push bx
+	push di
+
+	add di, NAME  ; Point di at the symbol str.
+	xor bx, bx    ; Index into the symbol str.
+	mov ah, 0x0e  ; For int 0x10.
+
+	.loop:
+
+	;; Print the current char from the symbol str.
+	mov BYTE al, [di+bx]
+	int 0x10
+
+	;; Advance to the next char.
+	inc bx
+
+	;; Break if we've encountered the terminating 0.
+	cmp BYTE [di+bx], 0
+	je .break
+
+	;; Break if the symbol str index is MAX_NAME_SIZE.
+	cmp bx, MAX_NAME_SIZE
+	je .break
+
+	jmp .loop
+
+	.break:
+
+	;; restore
+	pop di
+	pop bx
+	pop ax
+	
 	ret
 
 print_num:
