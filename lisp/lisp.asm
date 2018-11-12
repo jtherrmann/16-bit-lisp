@@ -140,56 +140,6 @@ lisp_crash:
 
 main:
 ;;; Run the Lisp interpreter.
-	call init_freelist
-	call make_initial_objs
-
-	;; --------------------------------------------------------------------
-	;; TODO: temp
-
-	push ax
-	push di
-
-	jmp .skiptestobjs
-
-	.test1 dw 0x0000
-	.test2 dw 0x0000
-	.test3 dw 0x0000
-
-	.symstr1 dw "abcdefg",0
-	.symstr2 dw "ttt",0
-	.symstr3 dw "bl",0
-
-	.skiptestobjs:
-
-	mov di, .symstr1
-	call get_sym
-	mov [.test1], ax
-
-	mov di, .symstr2
-	call get_sym
-	mov [.test2], ax
-
-	mov di, .symstr3
-	call get_sym
-	mov [.test3], ax
-
-	call print_newline
-	mov di, [.test1]
-	call print_obj
-
-	call print_newline
-	mov di, [.test2]
-	call print_obj
-
-	call print_newline
-	mov di, [.test3]
-	call print_obj
-
-	call print_newline
-
-	pop di
-	pop ax
-	;; --------------------------------------------------------------------
 
 	jmp .start
 
@@ -205,6 +155,9 @@ main:
 	.prompt db "> ",0
 
 	.start:
+
+	call init_freelist
+	call make_initial_objs
 
 	mov di, .welcome_str
 	call println
@@ -519,9 +472,6 @@ init_freelist:
 	;; Set the head of the free list to the first object in the object
 	;; heap.
 	mov WORD [freelist], obj_heap
-
-	;; TODO: temp
-	call print_freelist
 
 	;; restore
 	pop cx
