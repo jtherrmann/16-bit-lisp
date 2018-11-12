@@ -240,15 +240,22 @@ main:
 
 	;; Error if we encounter more input after the parsed expression.
 	cmp BYTE [di], 0
-	je .print
+	je .eval
 	call badinput
 	mov di, .expected_end_str
 	call println
 	jmp .loop
 
-	;; TODO: comment: print (the parsed expr? the result of eval?)
-	.print:
+	;; Evaluate the parsed expression.
+	.eval:
+
+	mov di, ax
+	call eval
+
+	cmp ax, NULL
+	je .loop
 	
+	;; Print eval's return value.
 	mov di, ax
 	call print_newline
 	call print_obj
@@ -1052,6 +1059,48 @@ badinput:
 
 	;; restore
 	pop cx
+
+	ret
+
+
+;;; ===========================================================================
+;;; Eval
+;;; ===========================================================================
+
+eval:
+;;; Evaluate an expression.
+;;;
+;;; Pre:
+;;; - di points to the Lisp object that represents the expression.
+;;;
+;;; Post:
+;;; - ax points to the Lisp object that represents the result.
+
+	jmp .start
+
+	.bugstr:
+	db "You have found a bug: cannot eval expression",0
+
+	.start:
+
+	;; If expr is of type int, return it.
+	cmp BYTE [di+TYPE], TYPE_INT
+	je .return
+
+	;; If expr is the empty list, return it.
+	cmp WORD di, [emptylist]
+	je .return
+
+	;; Cannot eval expr.
+
+	push di  ; Save expr.
+	mov di, .bugstr
+	call println
+	pop di  ; Restore expr.
+
+	mov ax, NULL
+
+	.return:
 
 	ret
 
