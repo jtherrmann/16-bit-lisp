@@ -269,7 +269,29 @@ main:
 
 make_initial_objs:
 ;;; Construct the initial set of Lisp objects.
+
+	;; save
+	push ax
+	push di
+
+	jmp .start
+
+	.quotestr db "quote",0
+
+	.start:
+
+	;; Make the empty list.
 	call make_emptylist
+
+	;; Make the quote symbol.
+	mov di, .quotestr
+	call get_sym
+	mov [quotesym], ax
+
+	;; restore
+	pop di
+	pop ax
+
 	ret
 
 make_emptylist:
@@ -1076,6 +1098,9 @@ eval:
 ;;; Post:
 ;;; - ax points to the Lisp object that represents the result.
 
+	;; save
+	push si
+
 	jmp .start
 
 	.bugstr:
@@ -1091,6 +1116,29 @@ eval:
 	cmp WORD di, [emptylist]
 	je .return
 
+	;; If (car expr) is the quote symbol, return (car (cdr expr)).
+	;; For example, (quote (1 2 3)) evaluates to (1 2 3).
+
+	push di  ; Save expr.
+	mov WORD di, [di+CAR]
+	mov WORD si, [quotesym]
+	call equal
+	pop di  ; Restore expr.
+
+	cmp ax, 0
+	je .skipquote
+
+	;; TODO: error if len (cdr expr) != 1
+
+	push di  ; Save expr.
+	mov WORD di, [di+CDR]
+	mov WORD ax, [di+CAR]
+	pop di  ; Restore expr.
+
+	jmp .return
+
+	.skipquote:
+
 	;; Cannot eval expr.
 
 	push di  ; Save expr.
@@ -1101,6 +1149,9 @@ eval:
 	mov ax, NULL
 
 	.return:
+
+	;; restore
+	pop si
 
 	ret
 
@@ -2160,6 +2211,7 @@ power:
 	freecount dw 0x0000
 
 	emptylist dw 0x0000
+	quotesym dw 0x0000
 
 	;; TODO: comment why align (use low bits, e.g. mark in mark-and-sweep)
 	;; TODO: may only need align 2; see notebook
