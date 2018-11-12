@@ -1108,13 +1108,20 @@ eval:
 
 	.start:
 
-	;; If expr is of type int, return it.
+	;; --------------------------------------------------------------------
+	;; Self-evaluating expressions
+	;; --------------------------------------------------------------------
+
 	cmp BYTE [di+TYPE], TYPE_INT
 	je .return
 
-	;; If expr is the empty list, return it.
 	cmp WORD di, [emptylist]
 	je .return
+
+
+	;; --------------------------------------------------------------------
+	;; quote
+	;; --------------------------------------------------------------------
 
 	;; If (car expr) is the quote symbol, return (car (cdr expr)).
 	;; For example, (quote (1 2 3)) evaluates to (1 2 3).
@@ -1139,14 +1146,13 @@ eval:
 
 	.skipquote:
 
-	;; Cannot eval expr.
+	;; --------------------------------------------------------------------
 
-	push di  ; Save expr.
+
+	;; Unrecognized expression. Notify the user and crash.
 	mov di, .bugstr
 	call println
-	pop di  ; Restore expr.
-
-	mov ax, NULL
+	jmp lisp_crash
 
 	.return:
 
