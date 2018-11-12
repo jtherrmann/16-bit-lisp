@@ -1384,6 +1384,185 @@ print_pair:
 
 
 ;;; ===========================================================================
+;;; Builtin binary operators
+;;; ===========================================================================
+
+equal:
+;;; Builtin function equal.
+;;; Pre:
+;;; - di points to the first object.
+;;; - si points to the second object.
+;;;
+;;; Post:
+;;; - ax contains 1 if the objects are equal and 0 otherwise.
+
+	;; save
+	push cx
+
+	jmp .start
+
+	.bugstr:
+	db "You have found a bug: cannot compare objects of unrecognized type",0
+
+	.start:
+
+	;; Return true if the objects are the same object.
+	cmp di, si
+	je .true
+
+	;; Return false if the objects have different types.
+	mov BYTE cl, [di+TYPE]
+	cmp BYTE cl, [si+TYPE]
+	jne .false
+
+	;; If the objects are of type unique, return false because we already
+	;; know they're not the same object.
+
+	cmp BYTE [di+TYPE], TYPE_UNIQUE
+	jne .skipunique
+
+	jmp .false
+
+	.skipunique:
+
+	;; If the objects are of type int, return whether they have the same
+	;; value.
+
+	cmp BYTE [di+TYPE], TYPE_INT
+	jne .skipint
+
+	mov WORD cx, [di+VAL]
+	cmp WORD cx, [si+VAL]
+	je .true
+	jmp .false
+
+	.skipint:
+
+	;; If the objects are of type symbol, return the result of sym_cmp.
+
+	cmp BYTE [di+TYPE], TYPE_SYMBOL
+	jne .skipsym
+
+	call sym_cmp
+	jmp .return
+
+	.skipsym:
+
+	;; If the objects are of type pair, return whether their CARs and CDRs
+	;; are equal.
+
+	cmp BYTE [di+TYPE], TYPE_PAIR
+	jne .skippair
+
+	push di  ; Save first object.
+	push si	 ; Save second object.
+
+	mov WORD di, [di+CAR]
+	mov WORD si, [si+CAR]
+	call equal
+
+	pop si  ; Restore first object.
+	pop di	; Restore second object.
+
+	cmp ax, 0
+	je .return
+
+	push di  ; Save first object.
+	push si	 ; Save second object.
+
+	mov WORD di, [di+CDR]
+	mov WORD si, [si+CDR]
+	call equal
+
+	pop si  ; Restore first object.
+	pop di	; Restore second object.
+
+	;; Return the result of the second call to equal.
+	jmp .return
+
+	.skippair:
+
+	;; Cannot compare objects. Notify the user and crash.
+	mov di, .bugstr
+	call println
+	jmp lisp_crash
+
+	.true:
+	mov ax, 1
+	jmp .return
+
+	.false:
+	mov ax, 0
+
+	.return:
+
+	;; restore
+	pop cx
+
+	ret
+
+sym_cmp:
+;;; Return whether the symbols are equal.
+;;;
+;;; Pre:
+;;; - di points to the first symbol.
+;;; - si points to the second symbol.
+;;;
+;;; Post:
+;;; - ax contains 1 if the symbols are equal and 0 otherwise.
+
+	;; save
+	push bx
+	push di
+	push si
+
+	add di, NAME  ; Start of the first symbol's string.
+	add si, NAME  ; Start of the second symbol's string.
+	mov bx, 0  ; Index into each string.
+
+	;; Loop through the strings, comparing each pair of chars with the same
+	;; index.
+	.loop:
+
+	;; Exit the loop and return false if the current two chars are not
+	;; equal.
+	mov BYTE al, [si+bx]
+	cmp BYTE [di+bx], al
+	jne .false
+
+	;; The chars are equal, so exit the loop and return true if we've
+	;; reached the null terminator.
+	cmp BYTE [di+bx], 0
+	je .true
+
+	;; Advance to the next two chars.
+	inc bx
+
+	;; Exit the loop and return true if we've reached the maximum name
+	;; size.
+	cmp bx, MAX_NAME_SIZE
+	je .true
+
+	jmp .loop
+
+	.true:
+	mov ax, 1
+	jmp .return
+
+	.false:
+	mov ax, 0
+
+	.return:
+
+	;; restore
+	pop si
+	pop di
+	pop bx
+
+	ret
+
+
+;;; ===========================================================================
 ;;; Interpreter commands
 ;;; ===========================================================================
 
@@ -1891,7 +2070,8 @@ compare_strings:
 	;; index.
 	.loop:
 
-	;; Exit the loop and return 0 if the current two chars are not equal.
+	;; Exit the loop and return false if the current two chars are not
+	;; equal.
 	mov BYTE al, [si+bx]
 	cmp BYTE [di+bx], al
 	jne .false
