@@ -757,8 +757,8 @@ parse_sym:
 is_sym_char:
 ;;; Return whether a symbol can contain the given char.
 ;;;
-;;; A valid symbol char is '-', '?', a digit in the range '0'-'9', or any char
-;;; for which is_sym_start_char returns true.
+;;; A valid symbol char is any char for which is_sym_start_char returns true or
+;;; any char in the range '0'-'9'.
 ;;; 
 ;;; Pre:
 ;;; - di points to the char.
@@ -769,12 +769,6 @@ is_sym_char:
 	call is_sym_start_char
 	cmp ax, 0
 	jne .true
-
-	cmp BYTE [di], '-'
-	je .true
-
-	cmp BYTE [di], '?'
-	je .true
 
 	cmp BYTE [di], 0x30
 	jl .false
