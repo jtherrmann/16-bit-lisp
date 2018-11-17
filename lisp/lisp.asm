@@ -23,6 +23,8 @@
 	%define TYPE_SYMBOL 0x03
 	%define TYPE_PAIR 0x04
 
+	;; TODO: document sizes; perhaps use macros for sizes e.g. for BYTE/WORD
+	;; and/or for number of bytes, if that's currently hard-coded anywhere
 	;; Lisp object field offsets.
 	%define TYPE 0
 	%define VAL 1
