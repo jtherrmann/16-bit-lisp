@@ -2163,9 +2163,6 @@ power:
 	emptylist dw 0x0000
 	quotesym dw 0x0000
 
-	;; TODO: comment why align (use low bits, e.g. mark in mark-and-sweep)
-	;; TODO: may only need align 2; see notebook
-	align OBJ_SIZE
 	obj_heap times OBJ_HEAP_SIZE db 0
 
 lisp_end:	
