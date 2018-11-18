@@ -1126,10 +1126,19 @@ eval:
 	;; If expr is a self-evaluating expression, return expr.
 
 	cmp BYTE [di+TYPE], TYPE_INT
-	je .return
+	je .selfeval
 
 	cmp WORD di, [emptylist]
-	je .return
+	je .selfeval
+
+	jmp .skipselfeval
+
+	.selfeval:
+
+	mov ax, di
+	jmp .return
+
+	.skipselfeval:
 
 
 	;; --------------------------------------------------------------------
