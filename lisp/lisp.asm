@@ -884,6 +884,8 @@ is_sym_start_char:
 	.return:
 	ret
 
+;;; TODO: parse negative ints
+;;; TODO: convert uses of num/number to int, where appropriate
 parse_num:
 ;;; Convert part of the input str to a Lisp int.
 ;;; Pre: di points to a char in the range 0x30-0x39 in the input str.
