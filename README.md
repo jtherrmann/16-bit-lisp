@@ -1,88 +1,47 @@
-# Boot sector and shell
+# 16-bit Lisp interpreter (work in progress)
 
 Jake Herrmann  
 CS 301 Fall 2018
 
-## Introduction
+TODO: toc
 
-This is a boot sector that loads a shell for x86 real mode. The project touches
-on most of the topics covered in class so far, particularly branching, function
-calls, stack manipulation, integer overflow, register and data sizes, pointers,
-and strings.
+## Project goals
 
-The first major challenge was getting the boot sector to load more sectors from
-the disk. Fortunately I received help from a kind Stack Overflow user (Michael
-Petch). Of course, the boot sector may still contain bugs that I haven't yet
-discovered.
+The **final goal** is a bootable, 16-bit Lisp interpreter for x86 real mode.
 
-After working out the kinks in the boot sector, another significant challenge
-was the inability to easily print values at arbitrary points in the program, as
-that is my go-to debugging tool in higher level languages. In particular,
-mixing up register and data sizes caused me significant frustration until I
-learned to pay much closer attention to the sizes of values.
+The **end of semester goal** is a partial implementation of the interpreter. In
+particular, the interpreter should be able to:
 
-Overall, the experience has given me more confidence working with lower level
-abstractions and was a valuable experience in code organization and debugging
-in general.
+- Construct the following Lisp objects: ints, symbols, pairs, and the empty
+  list.
+- Read an input expression and convert it into a Lisp object representing the
+  expression's abstract syntax tree.
+- Print Lisp objects.
+
+## Background
+
+Before starting this project I had not written an interpreter for any language.
+I found it too difficult to tackle the problem in 16-bit assembly, so I decided
+to write the first version in C and target 64-bit Linux. This was a good
+decision because it allowed me to focus on writing an interpreter without the
+added challenge of doing so in 16-bit assembly.
+
+After implementing [a Lisp in C](https://notabug.org/jtherrmann/lisp-in-c), I
+had a much better idea of how to do the same in 16-bit assembly. So far, it has
+been surprisingly straightforward to translate my C code into NASM.
+
+## Progress report
+
+I have met my goals for the end of the semester...TODO
+
+TODO: document everything documented / to document for C lisp
 
 ## Getting started
 
 Known to work on Debian GNU/Linux 9.5 (stretch).
 
 1. Make sure `nasm` and `qemu` are installed.
-2. Clone this repo, `cd` into `os/`, and run:
+2. Clone this repo, `cd` into `lisp/`, and run:
 
-        nasm -f bin -o os.bin os.asm
-        qemu-system-x86_64 os.bin
-
-## Applications
-
-### The Somewhat Lazy Calculator (SLC)
-
-Most calculators use infix notation; that is, operators fall in between their
-operands (e.g. 3 - 1 = 2).
-
-SLC uses postfix notation; that is, operators follow their operands:
-
-    SLC> 6 2 /
-    3
-    SLC> 10 2 ^ 25 -
-    75
-
-Postfix notation is useful in computing because expressions written in postfix
-notation are extremely simple to evaluate using a stack. While users might
-consider infix notation more readable, SLC is lazy and prefers postfix
-notation.
-
-SLC recognizes the following operators:
-
-`+` (add)  
-`-` (subtract)  
-`*` (multiply)  
-`/` (divide)  
-`%` (mod)  
-`^` (power)  
-
-SLC can only operate on integers in the range -32768 to 32767 (inclusive).
-
-An *operand overflow* occurs when SLC encounters an operand outside of this
-range:
-
-    SLC> 32768
-    Operand overflow.
-
-An *operation overflow* occurs when SLC encounters an operation whose result
-falls outside of this range:
-
-    SLC> 32767 1 +
-    Operation overflow.
-
-Oh, and SLC is too lazy to parse negative operands (e.g. -10). But there's a
-simple workaround:
-
-    SLC> 0 10 -
-    -10
-    SLC> 0 10 - 2 ^
-    100
-    SLC> 0 10 - 3 ^
-    -1000
+        nasm -f bin -o lisp.bin lisp.asm
+        qemu-system-x86_64 lisp.bin
