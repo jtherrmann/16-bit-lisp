@@ -9,14 +9,17 @@ TODO: toc
 
 The **final goal** is a bootable, 16-bit Lisp interpreter for x86 real mode.
 
-The **end of semester goal** is a partial implementation of the interpreter. In
-particular, the interpreter should be able to:
+The **end of semester goal** is a partial implementation of the interpreter.
+The partial interpreter should be able to:
 
 - Construct the following Lisp objects: ints, symbols, pairs, and the empty
   list.
 - Read an input expression and convert it into a Lisp object representing the
-  expression's abstract syntax tree.
+  expression's abstract syntax tree (AST).
 - Print Lisp objects.
+
+Evaluating expressions is not an explicit goal for the end of the semester, but
+I may begin implementing expression evaluation if I have time.
 
 ## Background
 
@@ -30,7 +33,12 @@ the same in 16-bit NASM.
 
 ## Progress report
 
-I have met my goals for the end of the semester...TODO
+I have met my [goals](#project-goals) for the end of the semester and have
+begun implementing expression evaluation. The interpreter currently supports
+the following kinds of expressions:
+
+TODO: document ints, symbols, pairs, empty list, quote, define, and placeholder
+expressions; others? (see `eval`)
 
 TODO: document everything documented / to document for C lisp
 
