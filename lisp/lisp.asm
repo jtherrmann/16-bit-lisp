@@ -232,6 +232,9 @@ make_initial_objs:
 	jmp .start
 
 	.quotestr db "quote",0
+	.definestr db "define",0
+	.condstr db "cond",0
+	.lambdastr db "lambda",0
 
 	.start:
 
@@ -242,6 +245,21 @@ make_initial_objs:
 	mov di, .quotestr
 	call get_sym
 	mov [quotesym], ax
+
+	;; Make the define symbol.
+	mov di, .definestr
+	call get_sym
+	mov [definesym], ax
+
+	;; Make the cond symbol.
+	mov di, .condstr
+	call get_sym
+	mov [condsym], ax
+
+	;; Make the lambda symbol.
+	mov di, .lambdastr
+	call get_sym
+	mov [lambdasym], ax
 
 	;; restore
 	pop di
@@ -1092,6 +1110,87 @@ eval:
 
 	.skipquote:
 
+
+	;; --------------------------------------------------------------------
+	;; define
+	;; --------------------------------------------------------------------
+
+	;; If (car expr) is the define symbol, print a placeholder message and
+	;; return NULL.
+
+	push di  ; Save expr.
+	mov WORD di, [di+CAR]
+	mov WORD si, [definesym]
+	call equal
+	pop di  ; Restore expr.
+
+	cmp ax, 0
+	je .skipdefine
+
+	push di  ; Save expr.
+	mov WORD di, [definesym]
+	call special_form_placeholder
+	pop di  ; Restore expr.
+
+	mov ax, NULL
+	jmp .return
+
+	.skipdefine:
+
+
+	;; --------------------------------------------------------------------
+	;; cond
+	;; --------------------------------------------------------------------
+
+	;; If (car expr) is the cond symbol, print a placeholder message and
+	;; return NULL.
+
+	push di  ; Save expr.
+	mov WORD di, [di+CAR]
+	mov WORD si, [condsym]
+	call equal
+	pop di  ; Restore expr.
+
+	cmp ax, 0
+	je .skipcond
+
+	push di  ; Save expr.
+	mov WORD di, [condsym]
+	call special_form_placeholder
+	pop di  ; Restore expr.
+
+	mov ax, NULL
+	jmp .return
+
+	.skipcond:
+
+
+	;; --------------------------------------------------------------------
+	;; lambda
+	;; --------------------------------------------------------------------
+
+	;; If (car expr) is the lambda symbol, print a placeholder message and
+	;; return NULL.
+
+	push di  ; Save expr.
+	mov WORD di, [di+CAR]
+	mov WORD si, [lambdasym]
+	call equal
+	pop di  ; Restore expr.
+
+	cmp ax, 0
+	je .skiplambda
+
+	push di  ; Save expr.
+	mov WORD di, [lambdasym]
+	call special_form_placeholder
+	pop di  ; Restore expr.
+
+	mov ax, NULL
+	jmp .return
+
+	.skiplambda:
+
 	;; --------------------------------------------------------------------
 
 
@@ -1104,6 +1203,34 @@ eval:
 
 	;; restore
 	pop si
+
+	ret
+
+special_form_placeholder:
+;;; Print a placeholder message for a special form that has not been implemented.
+;;;
+;;; Pre:
+;;; - di points to the special form's symbol.
+
+	jmp .start
+
+	.message1 db "Special form '",0
+	.message2 db "' not yet implemented",0
+
+	.start:
+
+	push di  ; Save symbol.
+	mov di, .message1
+	call println
+	pop di  ; Restore symbol.
+
+	;; Print the special form's symbol.
+	call print_obj
+
+	push di  ; Save symbol.
+	mov di, .message2
+	call print
+	pop di  ; Restore symbol.
 
 	ret
 
@@ -2164,6 +2291,9 @@ power:
 
 	emptylist dw 0x0000
 	quotesym dw 0x0000
+	definesym dw 0x0000
+	condsym dw 0x0000
+	lambdasym dw 0x0000
 
 	obj_heap times OBJ_HEAP_SIZE db 0
 
