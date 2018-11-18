@@ -1158,7 +1158,7 @@ eval:
 	jne .skipsym
 
 	;; Get the value to which expr is bound.
-	call lookup
+	call get_def
 
 	;; Return the result unless it's NULL.
 	cmp ax, NULL
@@ -1853,6 +1853,22 @@ bind:
 	push di
 	push si
 
+	;; Get the (symbol . value) binding for the given symbol.
+	call lookup
+
+	;; If the symbol has no binding, create a new binding for it.
+	cmp ax, NULL
+	je .newbinding
+
+	;; Otherwise, just set the binding's CDR to the new value and return.
+	mov WORD di, ax
+	mov WORD [di+CDR], si
+	jmp .return
+
+	;; Create the new (symbol . value) binding and insert it at the
+	;; beginning of the list representing the global environment.
+	.newbinding:
+
 	;; Construct a pair of the form (symbol . value).
 	call cons
 
@@ -1865,6 +1881,8 @@ bind:
 	;; Set the global environment to the newly constructed list.
 	mov WORD [globalenv], ax
 
+	.return:
+
 	;; restore
 	pop si
 	pop di
@@ -1872,12 +1890,41 @@ bind:
 
 	ret
 
-lookup:
+get_def:
 ;;; Return the value bound to the given symbol, or NULL if the symbol is not
 ;;; bound to a value.
 ;;;
 ;;; Pre:
-;;; - di points to the symbol.
+;;; - di points to the symbol object.
+;;;
+;;; Post:
+;;; - ax points to the value object.
+
+	;; Get the symbol's (symbol . value) binding.
+	call lookup
+
+	;; Return NULL if the symbol is unbound.
+	cmp ax, NULL
+	je .return
+
+	;; Return the value from the (symbol . value) binding.
+	push di  ; save
+	mov WORD di, ax
+	mov WORD ax, [di+CDR]
+	pop di  ; restore
+
+	.return:
+	ret
+
+lookup:
+;;; Return the (symbol . value) binding for the given symbol, or NULL if the
+;;; symbol is unbound.
+;;;
+;;; Pre:
+;;; - di points to the symbol object.
+;;;
+;;; Post:
+;;; - ax points to the (symbol . value) pair.
 
 	;; save
 	push si
@@ -1910,19 +1957,8 @@ lookup:
 	cmp ax, 0
 	je .next
 
-	;; The symbols are equal, so return the value bound to the symbol.
-
-	push si  ; Save current position in global env.
-
-	;; Set si to the (symbol . value) pair again.
-	mov WORD si, [si+CAR]
-
-	;; Set ax to the value in the (symbol . value) pair.
-	mov WORD ax, [si+CDR]
-
-	pop si  ; Restore current position in global env.
-
-	;; Return the value.
+	;; The symbols are equal, so return the (symbol . value) pair.
+	mov WORD ax, [si+CAR]
 	jmp .return
 
 	;; Increment the current position in the global env.
