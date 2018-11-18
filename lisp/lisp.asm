@@ -1145,17 +1145,37 @@ eval:
 	;; Symbols
 	;; --------------------------------------------------------------------
 
-	;; If expr is a symbol, print a placeholder message and return NULL.
+	;; If expr is a symbol, return the value to which it's bound.
 
+	jmp .symstart
+
+	.symerrstr db " is undefined",0
+
+	.symstart:
+
+	;; Check if expr is a symbol.
 	cmp BYTE [di+TYPE], TYPE_SYMBOL
 	jne .skipsym
 
+	;; Get the value to which expr is bound.
+	call lookup
+
+	;; Return the result unless it's NULL.
+	cmp ax, NULL
+	jne .return
+
+	;; expr is not bound to a value. Notify the user and return NULL:
+
+	call print_newline
+	call print_obj
+
 	push di  ; Save expr.
-	mov di, .symbolstr
-	call println
+
+	mov di, .symerrstr
+	call print
+
 	pop di  ; Restore expr.
 
-	mov ax, NULL
 	jmp .return
 
 	.skipsym:
@@ -1193,24 +1213,54 @@ eval:
 	;; special form: define
 	;; --------------------------------------------------------------------
 
-	;; TODO: error if not used at top level
-
-	;; If (car expr) is the define symbol, bind the symbol (car (cdr expr))
-	;; to its definition (car (cdr (cdr expr))) and return NULL.
+	;; If (car expr) is the define symbol, expr must be of the form
+	;; (define <name> <definition>), where <name> is a symbol and
+	;; <definition> is an expression.
+	;; 
+	;; Bind <name> to (eval <definition>) and return NULL.
 
 	push di  ; Save expr.
+
+	;; Check if (car expr) is the define symbol.
 	mov WORD di, [di+CAR]
 	mov WORD si, [definesym]
 	call equal
+
 	pop di  ; Restore expr.
 
 	cmp ax, 0
 	je .skipdefine
 
+	push di  ; Save expr.
+
+	;; Set di to the definition: (car (cdr (cdr expr))).
+	mov WORD di, [di+CDR]
+	mov WORD di, [di+CDR]
+	mov WORD di, [di+CAR]
+
+	;; Eval the definition.
+	call eval
+
+	pop di  ; Restore expr.
+
+	;; Set si to the result.
+	mov si, ax
+
+	push di  ; Save expr.
+
+	;; Set di to the name: (car (cdr expr)).
+	mov WORD di, [di+CDR]
+	mov WORD di, [di+CAR]
+
+	;; Bind the name to the value of the definition.
+	call bind
+
+	pop di  ; Restore expr.
+
 	;; TODO:
 	;; - error if len (cdr expr) != 2
 	;; - error if (car (cdr expr)) is not a symbol
-	;; - bind symbol to definition
+	;; - error if not used at top level
 	;; - see C lisp for other stuff
 
 	mov ax, NULL
@@ -1819,6 +1869,79 @@ bind:
 	pop si
 	pop di
 	pop ax
+
+	ret
+
+lookup:
+;;; Return the value bound to the given symbol, or NULL if the symbol is not
+;;; bound to a value.
+;;;
+;;; Pre:
+;;; - di points to the symbol.
+
+	;; save
+	push si
+
+	;; Iterate through the list that represents the global environment
+	;; until we find a name matching the given symbol. If we reach the end
+	;; of the list without finding a matching name, return NULL.
+
+	;; Set si to the global env.
+	mov WORD si, [globalenv]
+
+	jmp .test
+	.loop:
+
+	push si  ; Save current position in global env.
+
+	;; Set si to the next (symbol . value) pair in the global env.
+	mov WORD si, [si+CAR]
+
+	;; Set si to the symbol in the (symbol . value) pair.
+	mov WORD si, [si+CAR]
+
+	;; Compare the given symbol, in di, with the symbol from the
+	;; (symbol . value) pair.
+	call equal
+
+	pop si  ; Restore current position in global env.
+
+	;; Jump to the next iteration if the symbols are not equal.
+	cmp ax, 0
+	je .next
+
+	;; The symbols are equal, so return the value bound to the symbol.
+
+	push si  ; Save current position in global env.
+
+	;; Set si to the (symbol . value) pair again.
+	mov WORD si, [si+CAR]
+
+	;; Set ax to the value in the (symbol . value) pair.
+	mov WORD ax, [si+CDR]
+
+	pop si  ; Restore current position in global env.
+
+	;; Return the value.
+	jmp .return
+
+	;; Increment the current position in the global env.
+	.next:
+	mov WORD si, [si+CDR]
+
+	;; Continue the loop until we reach the empty list at the end of the
+	;; global env.
+	.test:
+	cmp WORD si, [emptylist]
+	jne .loop
+
+	;; We did not find a name matching the given symbol, so return NULL.
+	mov ax, NULL
+
+	.return:
+
+	;; restore
+	pop si
 
 	ret
 
