@@ -276,6 +276,10 @@ make_initial_objs:
 	;; Make the empty list.
 	call make_emptylist
 
+	;; Initialize the global env by setting it to the empty list.
+	mov WORD di, [emptylist]
+	mov WORD [globalenv], di
+
 	;; Make the quote symbol.
 	mov di, .quotestr
 	call get_sym
@@ -1180,8 +1184,10 @@ eval:
 	;; special form: define
 	;; --------------------------------------------------------------------
 
-	;; If (car expr) is the define symbol, print a placeholder message and
-	;; return NULL.
+	;; TODO: error if not used at top level
+
+	;; If (car expr) is the define symbol, bind the symbol (car (cdr expr))
+	;; to its definition (car (cdr (cdr expr))) and return NULL.
 
 	push di  ; Save expr.
 	mov WORD di, [di+CAR]
@@ -1192,10 +1198,11 @@ eval:
 	cmp ax, 0
 	je .skipdefine
 
-	push di  ; Save expr.
-	mov WORD di, [definesym]
-	call special_form_placeholder
-	pop di  ; Restore expr.
+	;; TODO:
+	;; - error if len (cdr expr) != 2
+	;; - error if (car (cdr expr)) is not a symbol
+	;; - bind symbol to definition
+	;; - see C lisp for other stuff
 
 	mov ax, NULL
 	jmp .return
@@ -1591,7 +1598,7 @@ print_pair:
 
 
 ;;; ===========================================================================
-;;; Builtin binary operators
+;;; Object comparison
 ;;; ===========================================================================
 
 equal:
@@ -1770,6 +1777,44 @@ sym_cmp:
 
 
 ;;; ===========================================================================
+;;; Global environment
+;;; ===========================================================================
+
+;;; TODO: document structure of the global env, add a TODO to make it more efficient in future
+
+bind:
+;;; Bind a symbol to a value.
+;;;
+;;; Pre:
+;;; - di points to the symbol object.
+;;; - si points to the value object.
+
+	;; save
+	push ax
+	push di
+	push si
+
+	;; Construct a pair of the form (symbol . value).
+	call cons
+
+	;; Construct a list whose car is the (symbol . value) pair and whose
+	;; cdr is the list that represents the current global environment.
+	mov di, ax
+	mov WORD si, [globalenv]
+	call cons
+
+	;; Set the global environment to the newly constructed list.
+	mov WORD [globalenv], ax
+
+	;; restore
+	pop si
+	pop di
+	pop ax
+
+	ret
+
+
+;;; ===========================================================================
 ;;; Interpreter commands
 ;;; ===========================================================================
 
@@ -1909,11 +1954,12 @@ invalid_command:
 
 	;; The help command prints the first help_list_len commands from the
 	;; command table.
-	help_list_len dw 4  ; TODO: check val is correct
+	help_list_len dw 5  ; TODO: check val is correct
 
 ;;; Command strings:
 
 	freelist_str db CMD_PREFIX,"free",0
+	globalenv_str db CMD_PREFIX,"genv",0
 	help_str db CMD_PREFIX,"help",0
 	keymap_str db CMD_PREFIX,"keymap",0
 	reboot_str db CMD_PREFIX,"restart",0
@@ -1921,6 +1967,9 @@ invalid_command:
 command_table:
 	dw freelist_str
 	dw print_freelist
+
+	dw globalenv_str
+	dw print_global_env
 
 	dw help_str
 	dw help
@@ -2010,6 +2059,21 @@ print_freelist:
 	pop di
 	pop cx
 	pop bx
+
+	ret
+
+print_global_env:
+;;; Print the global environment.
+	;; save
+	push di
+
+	call print_newline
+
+	mov WORD di, [globalenv]
+	call print_obj
+
+	;; restore
+	pop di
 
 	ret
 
@@ -2383,7 +2447,10 @@ reboot_comp:
 	freelist dw 0x0000
 	freecount dw 0x0000
 
+	globalenv dw 0x0000
+
 	emptylist dw 0x0000
+
 	quotesym dw 0x0000
 	definesym dw 0x0000
 	condsym dw 0x0000
