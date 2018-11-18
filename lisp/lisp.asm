@@ -131,14 +131,12 @@ lisp_crash:
 ;;; Crash the Lisp interpreter.
 	jmp .start
 
-	.str db "Lisp has crashed.",0
+	.msg db "Lisp has crashed.",0
 
 	.start:
 
-	mov di, .str
-	call println
-
-	jmp reboot
+	mov di, .msg
+	jmp reboot_comp
 
 main:
 ;;; Run the Lisp interpreter.
@@ -1840,32 +1838,16 @@ keymap:
 	pop di  ; restore
 	ret
 
-;;; TODO: don't print "See you soon!" if rebooting because lisp crashed
 reboot:
 ;;; Reboot.
 	jmp .start
 
-	.str1 db "See you soon!",0
-	.str2 db "Press any key to reboot.",0
+	.msg db "See you soon!",0
 
 	.start:
 
-	mov di, .str1
-	call println
-
-	mov di, .str2
-	call print_newline
-	call println
-
-	;; Wait for a keypress.
-	mov ah, 0
-	int 0x16
-
-	;; Reboot.
-	;; https://stackoverflow.com/a/32686533
-	db 0x0ea
-	dw 0x0000
-	dw 0xffff
+	mov di, .msg
+	jmp reboot_comp
 	
 invalid_command:
 ;;; Handle an invalid command.
@@ -2317,6 +2299,39 @@ power:
 	.return:
 	pop si  ; restore
 	ret
+
+
+;;; ---------------------------------------------------------------------------
+;;; Power management
+;;; ---------------------------------------------------------------------------
+
+reboot_comp:
+;;; Reboot the computer.
+;;; Print the given message, wait for a keypress, and reboot the computer.
+;;;
+;;; Pre:
+;;; - di contains the message.
+	jmp .start
+
+	.waitstr db "Press any key to reboot.",0
+
+	.start:
+
+	;; Print the given message.
+	call println
+	call print_newline
+
+	;; Wait for a keypress.
+	mov di, .waitstr
+	call println
+	mov ah, 0
+	int 0x16
+
+	;; Reboot.
+	;; Source: https://stackoverflow.com/a/32686533
+	db 0x0ea
+	dw 0x0000
+	dw 0xffff
 
 
 ;;; ===========================================================================
