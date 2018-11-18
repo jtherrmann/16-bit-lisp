@@ -1067,6 +1067,12 @@ eval:
 
 	jmp .start
 
+	.symbolstr:
+	db "Symbol evaluation not yet implemented",0
+
+	.functionstr:
+	db "Function application not yet implemented",0
+
 	.bugstr:
 	db "You have found a bug: cannot eval expression",0
 
@@ -1076,6 +1082,8 @@ eval:
 	;; Self-evaluating expressions
 	;; --------------------------------------------------------------------
 
+	;; If expr is a self-evaluating expression, return expr.
+
 	cmp BYTE [di+TYPE], TYPE_INT
 	je .return
 
@@ -1084,7 +1092,27 @@ eval:
 
 
 	;; --------------------------------------------------------------------
-	;; quote
+	;; Symbols
+	;; --------------------------------------------------------------------
+
+	;; If expr is a symbol, print a placeholder message and return NULL.
+
+	cmp BYTE [di+TYPE], TYPE_SYMBOL
+	jne .skipsym
+
+	push di  ; Save expr.
+	mov di, .symbolstr
+	call println
+	pop di  ; Restore expr.
+
+	mov ax, NULL
+	jmp .return
+
+	.skipsym:
+
+
+	;; --------------------------------------------------------------------
+	;; special form: quote
 	;; --------------------------------------------------------------------
 
 	;; If (car expr) is the quote symbol, return (car (cdr expr)).
@@ -1112,7 +1140,7 @@ eval:
 
 
 	;; --------------------------------------------------------------------
-	;; define
+	;; special form: define
 	;; --------------------------------------------------------------------
 
 	;; If (car expr) is the define symbol, print a placeholder message and
@@ -1139,7 +1167,7 @@ eval:
 
 
 	;; --------------------------------------------------------------------
-	;; cond
+	;; special form: cond
 	;; --------------------------------------------------------------------
 
 	;; If (car expr) is the cond symbol, print a placeholder message and
@@ -1166,7 +1194,7 @@ eval:
 
 
 	;; --------------------------------------------------------------------
-	;; lambda
+	;; special form: lambda
 	;; --------------------------------------------------------------------
 
 	;; If (car expr) is the lambda symbol, print a placeholder message and
@@ -1191,13 +1219,25 @@ eval:
 
 	.skiplambda:
 
+
+	;; --------------------------------------------------------------------
+	;; Function application
 	;; --------------------------------------------------------------------
 
+	;; If we've reached this point then expr is a list that is not a
+	;; special form, so expr must represent a function application; print a
+	;; placeholder message and return NULL.
 
-	;; Unrecognized expression. Notify the user and crash.
-	mov di, .bugstr
+	push di  ; Save expr.
+	mov di, .functionstr
 	call println
-	jmp lisp_crash
+	pop di  ; Restore expr.
+
+	mov ax, NULL
+	jmp .return
+
+	;; --------------------------------------------------------------------
+
 
 	.return:
 
