@@ -1108,9 +1108,6 @@ eval:
 
 	jmp .start
 
-	.symbolstr:
-	db "Symbol evaluation not yet implemented",0
-
 	.functionstr:
 	db "Function application not yet implemented",0
 
