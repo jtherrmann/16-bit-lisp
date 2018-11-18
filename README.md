@@ -22,13 +22,11 @@ particular, the interpreter should be able to:
 
 Before starting this project I had not written an interpreter for any language.
 I found it too difficult to tackle the problem in 16-bit assembly, so I decided
-to write the first version in C and target 64-bit Linux. This was a good
-decision because it allowed me to focus on writing an interpreter without the
-added challenge of doing so in 16-bit assembly.
-
-After implementing [a Lisp in C](https://notabug.org/jtherrmann/lisp-in-c), I
-had a much better idea of how to do the same in 16-bit assembly. So far, it has
-been surprisingly straightforward to translate my C code into NASM.
+to write the [first version](https://notabug.org/jtherrmann/lisp-in-c) in C and
+target 64-bit Linux. This was a good decision because it allowed me to focus on
+writing an interpreter without the added challenge of doing so in 16-bit
+assembly. After implementing a Lisp in C, I had a much better idea of how to do
+the same in 16-bit NASM.
 
 ## Progress report
 
