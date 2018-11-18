@@ -3,6 +3,23 @@
 ;;; - make sure procedures preserve ax when they call other procedures that
 ;;;   return in ax
 
+	BITS 16
+
+	;; General sources used throughout project:
+	;; - 16-bit x86 addressing modes: https://stackoverflow.com/a/12474190
+	;; - zero-extension: https://stackoverflow.com/a/32836665
+	;; - Lecture notes:
+	;;   - https://www.cs.uaf.edu/2017/fall/cs301/lecture/09_11_registers.html
+	;;   - https://www.cs.uaf.edu/2017/fall/cs301/lecture/09_15_strings_arrays.html
+
+;;; ===========================================================================
+;;; Macros
+;;; ===========================================================================
+
+;;; ---------------------------------------------------------------------------
+;;; General
+;;; ---------------------------------------------------------------------------
+
 	;; Null pointer.
 	%define NULL 0x0000
 
@@ -12,37 +29,57 @@
 	;; Prefix for interpreter commands.
 	%define CMD_PREFIX ':'
 
-	;; Lisp object and object heap sizes.
-	%define OBJ_SIZE 8
-	%define OBJ_HEAP_SIZE OBJ_SIZE * 50  ; TODO: find good size for demo
-	%define LAST_OBJ OBJ_HEAP_SIZE - OBJ_SIZE
 
-	;; Lisp object types.
+;;; ---------------------------------------------------------------------------
+;;; Lisp object
+;;; ---------------------------------------------------------------------------
+
+;;; A Lisp object is a chunk of memory OBJ_SIZE bytes in size:
+
+	%define OBJ_SIZE 8
+
+
+;;; Each of its fields is offset from the start of the object by some number of
+;;; bytes. All objects have a TYPE field with an offset of 0:
+
+	;; Size: BYTE.
+	%define TYPE 0
+
+
+;;; The remaining fields overlap in memory and each is specific to a particular
+;;; type of object:
+
+	;; For objects of type TYPE_INT.
+	;; Size: WORD.
+	%define VAL 1
+
+	;; For objects of type TYPE_SYMBOL.
+	;; 0 < size <= MAX_NAME_SIZE.
+	%define NAME 1
+
+	;; For objects of type TYPE_PAIR.
+	;; Size: WORD.
+	%define CAR 1
+	%define CDR 3
+
+
+;;; Lisp object types:
+
 	%define TYPE_UNIQUE 0x01
 	%define TYPE_INT 0x02
 	%define TYPE_SYMBOL 0x03
 	%define TYPE_PAIR 0x04
 
-	;; TODO: document sizes; perhaps use macros for sizes e.g. for BYTE/WORD
-	;; and/or for number of bytes, if that's currently hard-coded anywhere
-	;; Lisp object field offsets.
-	%define TYPE 0
-	%define VAL 1
-	%define NAME 1
-	%define CAR 1
-	%define CDR 3
 
-	;; Maximum size for a Lisp symbol's name.
+;;; Symbol name size:
+
 	%define MAX_NAME_SIZE OBJ_SIZE - NAME
 
-	BITS 16
 
-	;; General sources used throughout project:
-	;; - 16-bit x86 addressing modes: https://stackoverflow.com/a/12474190
-	;; - zero-extension: https://stackoverflow.com/a/32836665
-	;; - Lecture notes:
-	;;   - https://www.cs.uaf.edu/2017/fall/cs301/lecture/09_11_registers.html
-	;;   - https://www.cs.uaf.edu/2017/fall/cs301/lecture/09_15_strings_arrays.html
+;;; Lisp object heap size:
+
+	%define OBJ_HEAP_SIZE OBJ_SIZE * 50  ; TODO: find good size for demo
+
 	
 ;;; ===========================================================================
 ;;; Boot sector
@@ -451,6 +488,8 @@ get_obj:
 
 init_freelist:
 ;;; Construct the initial list of free objects.
+	%define LAST_OBJ OBJ_HEAP_SIZE - OBJ_SIZE
+
 	;; save
 	push bx
 	push cx
