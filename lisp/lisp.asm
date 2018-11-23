@@ -1153,8 +1153,7 @@ eval:
 
 	jmp .symstart
 
-	;; TODO: use the invalid expr function here
-	.symerrstr db " is undefined",0
+	.syminvalidstr db " is undefined",0
 
 	.symstart:
 
@@ -1171,14 +1170,12 @@ eval:
 
 	;; expr is not bound to a value. Notify the user and return NULL:
 
-	call print_newline
+	call invalid_expr
+
 	call print_obj
-
 	push di  ; Save expr.
-
-	mov di, .symerrstr
+	mov di, .syminvalidstr
 	call print
-
 	pop di  ; Restore expr.
 
 	jmp .return
