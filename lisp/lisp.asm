@@ -1193,22 +1193,56 @@ eval:
 	;; If (car expr) is the quote symbol, return (car (cdr expr)).
 	;; For example, (quote (1 2 3)) evaluates to (1 2 3).
 
+	jmp .quotestart
+
+	.quoteinvalidstr db " takes 1 argument",0
+
+	.quotestart:
+
+	;; Check if (car expr) is the quote symbol.
 	push di  ; Save expr.
 	mov WORD di, [di+CAR]
 	mov WORD si, [quotesym]
 	call equal
 	pop di  ; Restore expr.
 
+	;; If not, don't evaluate expr as a quotation.
 	cmp ax, 0
 	je .skipquote
 
-	;; TODO: error if len (cdr expr) != 1
+	;; Get the length of (cdr expr).
+	push di  ; Save expr.
+	mov WORD di, [di+CDR]
+	call length
+	pop di  ; Restore expr.
 
+	;; expr is invalid if length (cdr expr) != 1.
+	cmp ax, 1
+	jne .quoteinvalid
+
+	;; Return (car (cdr expr)).
 	push di  ; Save expr.
 	mov WORD di, [di+CDR]
 	mov WORD ax, [di+CAR]
 	pop di  ; Restore expr.
+	jmp .return
 
+	;; expr is invalid. Notify the user and return NULL.
+	.quoteinvalid:
+	call invalid_expr
+
+	push di  ; Save expr.
+
+	mov di, [quotesym]
+	call print_obj
+
+	mov di, .quoteinvalidstr
+	call print
+
+	pop di  ; Restore expr.
+
+	;; Return NULL.
+	mov ax, NULL
 	jmp .return
 
 	.skipquote:
@@ -1381,6 +1415,30 @@ length:
 
 	;; restore
 	pop di
+
+	ret
+
+invalid_expr:
+;;; Handle an invalid expression.
+;;;
+;;; Pre:
+;;; - di points to the expression.
+	jmp .start
+
+	.errstr db "Invalid expression:",NEWLINE,NEWLINE,"  ",0
+
+	.start:
+
+	;; Print the error string.
+	push di  ; Save expr.
+	mov di, .errstr
+	call println
+	pop di  ; Restore expr.
+
+	;; Print expr.
+	call print_obj
+	call print_newline
+	call print_newline
 
 	ret
 
