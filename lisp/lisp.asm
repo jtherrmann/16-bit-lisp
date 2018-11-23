@@ -1255,17 +1255,34 @@ eval:
 	;; 
 	;; Bind <name> to (eval <definition>) and return NULL.
 
-	push di  ; Save expr.
+	jmp .definestart
+
+	.defineinvalidstr db " takes 2 arguments",0
+
+	.definestart:
 
 	;; Check if (car expr) is the define symbol.
+	push di  ; Save expr.
 	mov WORD di, [di+CAR]
 	mov WORD si, [definesym]
 	call equal
-
 	pop di  ; Restore expr.
 
+	;; If not, don't evaluate expr as a definition.
 	cmp ax, 0
 	je .skipdefine
+
+	;; Get the length of (cdr expr).
+	push di  ; Save expr.
+	mov WORD di, [di+CDR]
+	call length
+	pop di  ; Restore expr.
+
+	;; expr is invalid if length (cdr expr) != 2.
+	cmp ax, 2
+	jne .defineinvalid
+
+	;; Bind <name> to (eval <definition>):
 
 	push di  ; Save expr.
 
@@ -1297,16 +1314,34 @@ eval:
 
 	pop di  ; Restore expr.
 
-	;; TODO:
-	;; - error if len (cdr expr) != 2
-	;; - error if (car (cdr expr)) is not a symbol
-	;; - error if not used at top level
-	;; - see C lisp for other stuff
+	;; Return.
+	jmp .defineret
 
+	;; expr is invalid. Notify the user and return NULL.
+	.defineinvalid:
+	call invalid_expr
+
+	push di  ; Save expr.
+
+	mov di, [definesym]
+	call print_obj
+
+	mov di, .defineinvalidstr
+	call print
+
+	pop di  ; Restore expr.
+
+	;; Return NULL regardless of whether expr is valid.
+	.defineret:
 	mov ax, NULL
 	jmp .return
 
 	.skipdefine:
+
+	;; TODO:
+	;; - error if (car (cdr expr)) is not a symbol
+	;; - error if not used at top level
+	;; - see C lisp for other stuff
 
 
 	;; --------------------------------------------------------------------
