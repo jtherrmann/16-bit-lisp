@@ -1257,7 +1257,8 @@ eval:
 
 	jmp .definestart
 
-	.defineinvalidstr db " takes 2 arguments",0
+	.defineargsnumstr db " takes 2 arguments",0
+	.namenotsymbolstr db " is not a symbol",0
 
 	.definestart:
 
@@ -1280,7 +1281,17 @@ eval:
 
 	;; expr is invalid if length (cdr expr) != 2.
 	cmp ax, 2
-	jne .defineinvalid
+	jne .defineargsnum
+
+	;; Check if (car (cdr expr)) is a symbol.
+	push di  ; Save expr.
+	mov WORD di, [di+CDR]
+	mov WORD di, [di+CAR]
+	cmp BYTE [di+TYPE], TYPE_SYMBOL
+	pop di  ; Restore expr.
+
+	;; If not, expr is invalid.
+	jne .namenotsymbol
 
 	;; Bind <name> to (eval <definition>):
 
@@ -1317,8 +1328,8 @@ eval:
 	;; Return.
 	jmp .defineret
 
-	;; expr is invalid. Notify the user and return NULL.
-	.defineinvalid:
+	;; Wrong number of arguments. Notify the user.
+	.defineargsnum:
 	call invalid_expr
 
 	push di  ; Save expr.
@@ -1326,7 +1337,25 @@ eval:
 	mov di, [definesym]
 	call print_obj
 
-	mov di, .defineinvalidstr
+	mov di, .defineargsnumstr
+	call print
+
+	pop di  ; Restore expr.
+
+	;; Return.
+	jmp .defineret
+
+	;; <name> is not a symbol. Notify the user.
+	.namenotsymbol:
+	call invalid_expr
+
+	push di  ; Save expr.
+
+	mov WORD di, [di+CDR]
+	mov WORD di, [di+CAR]
+	call print_obj
+
+	mov di, .namenotsymbolstr
 	call print
 
 	pop di  ; Restore expr.
@@ -1339,7 +1368,6 @@ eval:
 	.skipdefine:
 
 	;; TODO:
-	;; - error if (car (cdr expr)) is not a symbol
 	;; - error if not used at top level
 	;; - see C lisp for other stuff
 
