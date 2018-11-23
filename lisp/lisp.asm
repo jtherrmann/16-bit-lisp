@@ -1243,11 +1243,14 @@ eval:
 	mov WORD di, [di+CDR]
 	mov WORD di, [di+CAR]
 
-	;; TODO: check if eval returns NULL
 	;; Eval the definition.
 	call eval
 
 	pop di  ; Restore expr.
+
+	;; Check if eval returned NULL.
+	cmp ax, NULL
+	je .return
 
 	;; Set si to the result.
 	mov si, ax
