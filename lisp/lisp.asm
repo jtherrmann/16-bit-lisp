@@ -1096,6 +1096,8 @@ badinput:
 ;;; Eval
 ;;; ===========================================================================
 
+;;; TODO: add an invalid expr function
+
 eval:
 ;;; Evaluate an expression.
 ;;;
@@ -1104,6 +1106,9 @@ eval:
 ;;;
 ;;; Post:
 ;;; - ax points to the Lisp object that represents the result.
+;;; 
+;;; On error:
+;;; - Return NULL.
 
 	;; save
 	push si
@@ -1148,6 +1153,7 @@ eval:
 
 	jmp .symstart
 
+	;; TODO: use the invalid expr function here
 	.symerrstr db " is undefined",0
 
 	.symstart:
@@ -1237,6 +1243,7 @@ eval:
 	mov WORD di, [di+CDR]
 	mov WORD di, [di+CAR]
 
+	;; TODO: check if eval returns NULL
 	;; Eval the definition.
 	call eval
 
@@ -1345,6 +1352,32 @@ eval:
 
 	;; restore
 	pop si
+
+	ret
+
+length:
+;;; Return the length of a Lisp list.
+;;;
+;;; Pre:
+;;; - di points to the list.
+
+	;; save
+	push di
+
+	xor ax, ax  ; length
+	jmp .test
+
+	.loop:
+	inc ax  ; Increment length.
+	mov WORD di, [di+CDR]  ; Set di to (cdr di).
+
+	;; Continue the loop until di is the empty list.
+	.test:
+	cmp WORD di, [emptylist]
+	jne .loop
+
+	;; restore
+	pop di
 
 	ret
 
