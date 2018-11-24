@@ -283,22 +283,22 @@ make_initial_objs:
 	;; Make the quote symbol.
 	mov di, .quotestr
 	call get_sym
-	mov [quotesym], ax
+	mov WORD [quotesym], ax
 
 	;; Make the define symbol.
 	mov di, .definestr
 	call get_sym
-	mov [definesym], ax
+	mov WORD [definesym], ax
 
 	;; Make the cond symbol.
 	mov di, .condstr
 	call get_sym
-	mov [condsym], ax
+	mov WORD [condsym], ax
 
 	;; Make the lambda symbol.
 	mov di, .lambdastr
 	call get_sym
-	mov [lambdasym], ax
+	mov WORD [lambdasym], ax
 
 	;; restore
 	pop di
@@ -1230,7 +1230,7 @@ eval:
 
 	push di  ; Save expr.
 
-	mov di, [quotesym]
+	mov WORD di, [quotesym]
 	call print_obj
 
 	mov di, .quoteinvalidstr
@@ -1334,7 +1334,7 @@ eval:
 
 	push di  ; Save expr.
 
-	mov di, [definesym]
+	mov WORD di, [definesym]
 	call print_obj
 
 	mov di, .defineargsnumstr
