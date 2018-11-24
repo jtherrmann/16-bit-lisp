@@ -1097,8 +1097,6 @@ badinput:
 ;;; Eval
 ;;; ===========================================================================
 
-;;; TODO: add an invalid expr function
-
 eval:
 ;;; Evaluate an expression.
 ;;;
