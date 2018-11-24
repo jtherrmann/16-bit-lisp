@@ -240,6 +240,7 @@ main:
 	.eval:
 
 	mov di, ax
+	mov BYTE [toplevel], 1
 	call eval
 
 	cmp ax, NULL
@@ -1103,6 +1104,8 @@ eval:
 ;;;
 ;;; Pre:
 ;;; - di points to the Lisp object that represents the expression.
+;;; - [toplevel] is 1 if the expression is being evaluated at the top level of
+;;;   the program and 0 otherwise.
 ;;;
 ;;; Post:
 ;;; - ax points to the Lisp object that represents the result.
@@ -1259,6 +1262,7 @@ eval:
 
 	.defineargsnumstr db " takes 2 arguments",0
 	.namenotsymbolstr db " is not a symbol",0
+	.toplevelstr db " can only occur at the top level",0
 
 	.definestart:
 
@@ -1272,6 +1276,10 @@ eval:
 	;; If not, don't evaluate expr as a definition.
 	cmp ax, 0
 	je .skipdefine
+
+	;; Check if expr is being evaluated at the top level of the program.
+	cmp BYTE [toplevel], 1
+	jne .nottoplevel
 
 	;; Get the length of (cdr expr).
 	push di  ; Save expr.
@@ -1303,6 +1311,7 @@ eval:
 	mov WORD di, [di+CAR]
 
 	;; Eval the definition.
+	mov BYTE [toplevel], 0
 	call eval
 
 	pop di  ; Restore expr.
@@ -1324,6 +1333,24 @@ eval:
 	call bind
 
 	pop di  ; Restore expr.
+
+	;; Return.
+	jmp .defineret
+
+	;; expr is not being evaluated at the top level of the program. Notify
+	;; the user.
+	.nottoplevel:
+	call invalid_expr
+
+	push di  ; Save expr.
+
+	mov WORD di, [definesym]
+	call print_obj
+
+	mov di, .toplevelstr
+	call print
+
+	pop di	 ; Restore expr.
 
 	;; Return.
 	jmp .defineret
@@ -1368,7 +1395,6 @@ eval:
 	.skipdefine:
 
 	;; TODO:
-	;; - error if not used at top level
 	;; - see C lisp for other stuff
 
 
@@ -2764,6 +2790,8 @@ reboot_comp:
 
 	input_buffer times 256 db 0
 	dvorak_mode db 1  ; TODO: back to 0 before submit project
+
+	toplevel db 0
 
 	freelist dw 0x0000
 	freecount dw 0x0000
