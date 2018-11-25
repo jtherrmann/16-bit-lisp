@@ -65,13 +65,13 @@ Known to work on Debian GNU/Linux 9.5 (stretch).
 
 The interpreter recognizes a handful of special commands:
 
-- `:free` - print the current number of free Lisp objects.
-- `:freelist` - print the current list of free Lisp objects, where each object
+- `:free` prints the current number of free Lisp objects.
+- `:freelist` prints the current list of free Lisp objects, where each object
   is printed as its position in the list followed by its memory address.
-- `:genv` - print the current global environment (a list of name-value pairs).
-- `:help` - print the available interpreter commands.
-- `:keymap` - toggle between QWERTY and Dvorak.
-- `:restart` - reboot the computer.
+- `:genv` prints the current global environment (a list of name-value pairs).
+- `:help` prints the available interpreter commands.
+- `:keymap` toggles between QWERTY and Dvorak.
+- `:restart` reboots the computer.
 
 ## Expressions
 
