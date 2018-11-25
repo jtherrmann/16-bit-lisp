@@ -2014,24 +2014,36 @@ sym_cmp:
 ;;; Global environment
 ;;; ===========================================================================
 
-;;; TODO: document structure of the global env, add a TODO to make it more efficient in future
+;;; The global environment is just a list of name-value pairs. For example, the
+;;; list of pairs ((nums 1 2 3) (y . 2) (x . 1)) represents an enviroment in
+;;; which x is defined as 1, y as 2, and nums as (1 2 3).
+
+;;; To retrieve the value bound to a given name, we must perform a linear
+;;; search on the list of name-value pairs. To bind a value to a given name, we
+;;; also perform a linear search to determine whether the name is already bound
+;;; to some value.
+
+;;; In the future, it would be a good idea to use a table implementation with
+;;; more efficient insertion and retrieval; for example, the Lisp-in-C
+;;; (https://notabug.org/jtherrmann/lisp-in-c) precursor to this project uses
+;;; a hash table.
 
 bind:
-;;; Bind a symbol to a value.
+;;; Bind a name to a value.
 ;;;
 ;;; Pre:
-;;; - di points to the symbol object.
-;;; - si points to the value object.
+;;; - di points to a symbol object representing the given name.
+;;; - si points to an object representing the given value.
 
 	;; save
 	push ax
 	push di
 	push si
 
-	;; Get the (symbol . value) binding for the given symbol.
+	;; Get the name-value pair for the given name.
 	call lookup
 
-	;; If the symbol has no binding, create a new binding for it.
+	;; If the name has no binding, create a new binding for it.
 	cmp ax, NULL
 	je .newbinding
 
@@ -2040,15 +2052,15 @@ bind:
 	mov WORD [di+CDR], si
 	jmp .return
 
-	;; Create the new (symbol . value) binding and insert it at the
-	;; beginning of the list representing the global environment.
+	;; Create the new name-value pair and insert it at the beginning of the
+	;; list representing the global environment.
 	.newbinding:
 
-	;; Construct a pair of the form (symbol . value).
+	;; Construct the name-value pair.
 	call cons
 
-	;; Construct a list whose car is the (symbol . value) pair and whose
-	;; cdr is the list that represents the current global environment.
+	;; Construct a list whose car is the name-value pair and whose cdr is
+	;; the list that represents the current global environment.
 	mov di, ax
 	mov WORD si, [globalenv]
 	call cons
@@ -2066,23 +2078,23 @@ bind:
 	ret
 
 get_def:
-;;; Return the value bound to the given symbol, or NULL if the symbol is not
-;;; bound to a value.
+;;; Return the value bound to the given name, or NULL if the name is not bound
+;;; to a value.
 ;;;
 ;;; Pre:
-;;; - di points to the symbol object.
+;;; - di points to a symbol object representing the given name.
 ;;;
 ;;; Post:
-;;; - ax points to the value object.
+;;; - ax points to the object representing the value.
 
-	;; Get the symbol's (symbol . value) binding.
+	;; Get the name-value pair for the given name.
 	call lookup
 
-	;; Return NULL if the symbol is unbound.
+	;; Return NULL if the name is unbound.
 	cmp ax, NULL
 	je .return
 
-	;; Return the value from the (symbol . value) binding.
+	;; Return the value from the name-value pair.
 	push di  ; save
 	mov WORD di, ax
 	mov WORD ax, [di+CDR]
@@ -2092,20 +2104,20 @@ get_def:
 	ret
 
 lookup:
-;;; Return the (symbol . value) binding for the given symbol, or NULL if the
-;;; symbol is unbound.
+;;; Return the name-value pair for the given name, or NULL if the name is
+;;; unbound.
 ;;;
 ;;; Pre:
-;;; - di points to the symbol object.
+;;; - di points to a symbol object representing the given name.
 ;;;
 ;;; Post:
-;;; - ax points to the (symbol . value) pair.
+;;; - ax points to the name-value pair.
 
 	;; save
 	push si
 
 	;; Iterate through the list that represents the global environment
-	;; until we find a name matching the given symbol. If we reach the end
+	;; until we find a name matching the given name. If we reach the end
 	;; of the list without finding a matching name, return NULL.
 
 	;; Set si to the global env.
@@ -2116,23 +2128,23 @@ lookup:
 
 	push si  ; Save current position in global env.
 
-	;; Set si to the next (symbol . value) pair in the global env.
+	;; Set si to the next name-value pair in the global env.
 	mov WORD si, [si+CAR]
 
-	;; Set si to the symbol in the (symbol . value) pair.
+	;; Set si to the name in the name-value pair.
 	mov WORD si, [si+CAR]
 
-	;; Compare the given symbol, in di, with the symbol from the
-	;; (symbol . value) pair.
+	;; Compare the given name, in di, with the name from the name-value
+	;; pair.
 	call equal
 
 	pop si  ; Restore current position in global env.
 
-	;; Jump to the next iteration if the symbols are not equal.
+	;; Jump to the next iteration if the names are not equal.
 	cmp ax, 0
 	je .next
 
-	;; The symbols are equal, so return the (symbol . value) pair.
+	;; The names are equal, so return the name-value pair.
 	mov WORD ax, [si+CAR]
 	jmp .return
 
@@ -2146,7 +2158,7 @@ lookup:
 	cmp WORD si, [emptylist]
 	jne .loop
 
-	;; We did not find a name matching the given symbol, so return NULL.
+	;; We did not find a name matching the given name, so return NULL.
 	mov ax, NULL
 
 	.return:
