@@ -1116,6 +1116,7 @@ eval:
 
 	jmp .start
 
+	;; TODO: call invalid_expr for placeholder messages like this one
 	.functionstr:
 	db "Function application not yet implemented",0
 
@@ -1391,9 +1392,6 @@ eval:
 	jmp .return
 
 	.skipdefine:
-
-	;; TODO:
-	;; - see C lisp for other stuff
 
 
 	;; --------------------------------------------------------------------
