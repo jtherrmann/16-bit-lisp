@@ -46,23 +46,31 @@
 ;;; Each of its fields is offset from the start of the object by some number of
 ;;; bytes. All objects have a TYPE field with an offset of 0:
 
-	;; Size: BYTE.
+	;; Object type: any
+	;; Field type:  Lisp object type
+	;; Field size:  BYTE
 	%define TYPE 0
 
 
 ;;; The remaining fields overlap in memory and each is specific to a particular
 ;;; type of object:
 
-	;; For objects of type TYPE_INT.
-	;; Size: WORD.
+	;; Object type: TYPE_INT
+	;; Field type:  integer
+	;; Field size:  WORD
 	%define VAL 1
 
-	;; For objects of type TYPE_SYMBOL.
-	;; 0 < size <= MAX_NAME_SIZE.
+	;; Object type: TYPE_SYMBOL
+	;; Field type:  string
+	;; Field size:  0 < size <= MAX_NAME_SIZE
+	;; 
+	;; For a detailed explanation of how and why symbols store their names,
+	;; see the documentation for the get_sym function.
 	%define NAME 1
 
-	;; For objects of type TYPE_PAIR.
-	;; Size: WORD.
+	;; Object type: TYPE_PAIR
+	;; Field type:  pointer to Lisp object
+	;; Field size:  WORD
 	%define CAR 1
 	%define CDR 3
 
