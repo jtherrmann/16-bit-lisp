@@ -124,3 +124,15 @@ Similarly, function applications are treated as invalid expressions:
 
 A function application is an attempt to evaluate any list other than the empty
 list or one of the special forms.
+
+## Interpreter commands
+
+The interpreter recognizes a handful of special commands:
+
+- `:free` - print the current number of free Lisp objects.
+- `:freelist` - print the current list of free Lisp objects, where each object
+  is printed as its position in the list followed by its memory address.
+- `:genv` - print the current global environment (a list of name-value pairs).
+- `:help` - print the available interpreter commands.
+- `:keymap` - toggle between QWERTY and Dvorak.
+- `:restart` - reboot the computer.
