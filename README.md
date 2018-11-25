@@ -41,7 +41,10 @@ implementation details)
 
 ### Constructing objects
 
-TODO: implementation details of a Lisp object
+TODO:
+- implementation details of a Lisp object
+- implementation details of the free list
+- note that currently no GC, so eventually runs out of memory
 
 ### Converting input to an AST
 
