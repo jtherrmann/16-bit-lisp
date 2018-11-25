@@ -5,6 +5,16 @@ CS 301 Fall 2018
 
 TODO: toc
 
+## Getting started
+
+Known to work on Debian GNU/Linux 9.5 (stretch).
+
+1. Make sure `nasm` and `qemu` are installed.
+2. Clone this repo, `cd` into `lisp/`, and run:
+
+        nasm -f bin -o lisp.bin lisp.asm
+        qemu-system-x86_64 lisp.bin
+
 ## Project goals
 
 The **final goal** is a bootable, 16-bit Lisp interpreter for x86 real mode.
@@ -34,25 +44,24 @@ the same in 16-bit NASM.
 ## Progress report
 
 I have met my [goals](#project-goals) for the end of the semester and have
-begun implementing expression evaluation. The interpreter currently supports
-the following kinds of expressions:
+begun implementing expression evaluation.
 
-TODO: document ints, symbols, pairs, empty list, quote, define, and placeholder
-expressions; others? (see `eval`)
+TODO: documentation/presentation on how the goals have been met (e.g.
+implementation details)
 
-TODO: document everything documented / to document for C lisp
+### Constructing objects
 
-## Getting started
+TODO: implementation details of a Lisp object
 
-Known to work on Debian GNU/Linux 9.5 (stretch).
+### Converting input to an AST
 
-1. Make sure `nasm` and `qemu` are installed.
-2. Clone this repo, `cd` into `lisp/`, and run:
+TODO
 
-        nasm -f bin -o lisp.bin lisp.asm
-        qemu-system-x86_64 lisp.bin
+### Printing objects
 
-## Expressions
+TODO
+
+### Expressions
 
 Only a few kinds of expressions are currently supported:
 
