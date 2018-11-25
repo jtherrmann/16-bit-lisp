@@ -5,16 +5,6 @@ CS 301 Fall 2018
 
 TODO: toc
 
-## Getting started
-
-Known to work on Debian GNU/Linux 9.5 (stretch).
-
-1. Make sure `nasm` and `qemu` are installed.
-2. Clone this repo, `cd` into `lisp/`, and run:
-
-        nasm -f bin -o lisp.bin lisp.asm
-        qemu-system-x86_64 lisp.bin
-
 ## Project goals
 
 The **final goal** is a bootable, 16-bit Lisp interpreter for x86 real mode.
@@ -44,7 +34,7 @@ the same in 16-bit NASM.
 ## Progress report
 
 I have met my [goals](#project-goals) for the end of the semester and have
-begun implementing expression evaluation.
+begun implementing [expression evaluation](#expressions).
 
 TODO: documentation/presentation on how the goals have been met (e.g.
 implementation details)
@@ -61,7 +51,29 @@ TODO
 
 TODO
 
-### Expressions
+## Getting started
+
+Known to work on Debian GNU/Linux 9.5 (stretch).
+
+1. Make sure `nasm` and `qemu` are installed.
+2. Clone this repo, `cd` into `lisp/`, and run:
+
+        nasm -f bin -o lisp.bin lisp.asm
+        qemu-system-x86_64 lisp.bin
+
+## Interpreter commands
+
+The interpreter recognizes a handful of special commands:
+
+- `:free` - print the current number of free Lisp objects.
+- `:freelist` - print the current list of free Lisp objects, where each object
+  is printed as its position in the list followed by its memory address.
+- `:genv` - print the current global environment (a list of name-value pairs).
+- `:help` - print the available interpreter commands.
+- `:keymap` - toggle between QWERTY and Dvorak.
+- `:restart` - reboot the computer.
+
+## Expressions
 
 Only a few kinds of expressions are currently supported:
 
@@ -124,15 +136,3 @@ Similarly, function applications are treated as invalid expressions:
 
 A function application is an attempt to evaluate any list other than the empty
 list or one of the special forms.
-
-## Interpreter commands
-
-The interpreter recognizes a handful of special commands:
-
-- `:free` - print the current number of free Lisp objects.
-- `:freelist` - print the current list of free Lisp objects, where each object
-  is printed as its position in the list followed by its memory address.
-- `:genv` - print the current global environment (a list of name-value pairs).
-- `:help` - print the available interpreter commands.
-- `:keymap` - toggle between QWERTY and Dvorak.
-- `:restart` - reboot the computer.
