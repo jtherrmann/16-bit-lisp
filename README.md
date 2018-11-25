@@ -139,3 +139,21 @@ Similarly, function applications are treated as invalid expressions:
 
 A function application is an attempt to evaluate any list other than the empty
 list or one of the special forms.
+
+## Error handling
+
+The interpreter detects and handles various kinds of errors. For example, parse
+errors:
+
+    > (quote (1 2 3)
+                    ^
+    Parse error: incomplete list
+
+And invalid expressions:
+
+    > (define 1 2)
+    Invalid expression:
+
+      (define 1 2)
+
+    1 is not a symbol
