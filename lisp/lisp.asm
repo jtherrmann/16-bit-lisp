@@ -3,6 +3,7 @@
 ;;; - make sure procedures preserve ax when they call other procedures that
 ;;;   return in ax
 ;;; - update docstring comments for consistent formatting
+;;; - command for printing just free count w/o free list
 
 	BITS 16
 
@@ -29,6 +30,9 @@
 
 	;; Prefix for interpreter commands.
 	%define CMD_PREFIX ':'
+
+	;; Input buffer size.
+	%define INPUT_SIZE 64
 
 
 ;;; ---------------------------------------------------------------------------
@@ -206,8 +210,8 @@ main:
 	mov di, .prompt
 	call println
 
-	mov di, input_buffer
 	call getstr
+	mov di, input_buffer
 
 	;; Check for empty input.
 	cmp BYTE [di], 0
@@ -2463,17 +2467,16 @@ print_global_env:
 ;;; Input
 ;;; ---------------------------------------------------------------------------
 
-;;; TODO: prevent buffer overflow
 getstr:
 ;;; Read a string from keyboard input.
-;;; Pre: di points to an array.
-;;; Post: di points to the same array, which now contains the string.
 
 	;; save
 	push ax
 	push bx
+	push di
 
-	mov bx, 0  ; input array index
+	mov di, input_buffer  ; Input buffer.
+	mov bx, 0  ; Input buffer index.
 
 	;; Get one char at a time, adding each one to the input array and
 	;; printing it to the screen. Exit upon encountering a carriage return.
@@ -2490,6 +2493,11 @@ getstr:
 	;; Check for carriage ret (enter).
 	cmp al, 0x0d
 	je .return
+
+	;; Restart the loop if the input buffer index is INPUT_SIZE, to prevent
+	;; buffer overflow.
+	cmp bx, INPUT_SIZE
+	je .loop
 
 	;; Skip unprintable chars.
 	cmp al, 0x20
@@ -2536,6 +2544,7 @@ getstr:
 	mov BYTE [di+bx], 0
 
 	;; restore
+	pop di
 	pop bx
 	pop ax
 
@@ -2818,23 +2827,34 @@ reboot_comp:
 ;;; Global data
 ;;; ===========================================================================
 
-	input_buffer times 256 db 0
+	;; The input buffer.
+	;; Use INPUT_SIZE+1 to allocate an extra byte for the null terminator.
+	input_buffer times INPUT_SIZE+1 db 0
+
+	;; Whether Dvorak mode is enabled.
 	dvorak_mode db 1  ; TODO: back to 0 before submit project
 
+	;; Whether we are currently evaluating an expression at the top level
+	;; of the program.
 	toplevel db 0
 
+	;; The list of free objects.
 	freelist dw 0x0000
 	freecount dw 0x0000
 
+	;; The list representing the global environment.
 	globalenv dw 0x0000
 
+	;; The empty list object.
 	emptylist dw 0x0000
 
+	;; Special form symbols.
 	quotesym dw 0x0000
 	definesym dw 0x0000
 	condsym dw 0x0000
 	lambdasym dw 0x0000
 
+	;; The object heap.
 	obj_heap times OBJ_HEAP_SIZE db 0
 
 lisp_end:	
