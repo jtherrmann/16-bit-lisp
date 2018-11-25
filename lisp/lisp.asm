@@ -595,7 +595,7 @@ parse:
 	cmp BYTE [di], 0x39
 	jg .skipint
 
-	call parse_num
+	call parse_int
 	jmp .return
 
 	.skipint:
@@ -886,8 +886,7 @@ is_sym_start_char:
 	ret
 
 ;;; TODO: parse negative ints
-;;; TODO: convert uses of num/number to int, where appropriate
-parse_num:
+parse_int:
 ;;; Convert part of the input str to a Lisp int.
 ;;; Pre: di points to a char in the range 0x30-0x39 in the input str.
 ;;; Post:
@@ -907,7 +906,7 @@ parse_num:
 	.strend dw 0x0000
 
 	.badinputstr db "Parse error: non-numeric char",0
-	.overflowstr db "Parse error: number exceeds size limit",0
+	.overflowstr db "Parse error: int exceeds size limit",0
 
 	.start:
 
@@ -957,7 +956,7 @@ parse_num:
 	;; Running total.
 	xor si, si
 
-	;; Current place in the number, starting at 0.
+	;; Current place in the int, starting at 0.
 	;; 10 raised to the current place gives us the place value.
 	xor cx, cx
 
