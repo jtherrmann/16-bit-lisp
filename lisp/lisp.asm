@@ -2,6 +2,7 @@
 ;;; - address TODO/FIXME in file
 ;;; - make sure procedures preserve ax when they call other procedures that
 ;;;   return in ax
+;;; - update docstring comments for consistent formatting
 
 	BITS 16
 
@@ -885,14 +886,21 @@ is_sym_start_char:
 	.return:
 	ret
 
-;;; TODO: parse negative ints
 parse_int:
 ;;; Convert part of the input str to a Lisp int.
-;;; Pre: di points to a char in the range 0x30-0x39 in the input str.
+;;; 
+;;; Pre:
+;;; - di points to a char in the range 0x30-0x39 in the input str.
+;;; 
 ;;; Post:
 ;;; - ax points to the parsed object.
 ;;; - di points to the first non-space char after the parsed substr.
-;;; On error: Return NULL.
+;;; 
+;;; On error:
+;;; - Return NULL.
+;;;
+;;; TODO:
+;;; - parse negative ints
 
 	;; save
 	push bx
@@ -1115,7 +1123,6 @@ eval:
 
 	jmp .start
 
-	;; TODO: call invalid_expr for placeholder messages like this one
 	.functionstr:
 	db "Function application not yet implemented",0
 
@@ -1400,20 +1407,27 @@ eval:
 	;; If (car expr) is the cond symbol, print a placeholder message and
 	;; return NULL.
 
+	;; Check if (car expr) is the cond symbol.
 	push di  ; Save expr.
 	mov WORD di, [di+CAR]
 	mov WORD si, [condsym]
 	call equal
 	pop di  ; Restore expr.
 
+	;; If not, don't evaluate expr as a conditional.
 	cmp ax, 0
 	je .skipcond
+
+	;; Print a placeholder message:
+
+	call invalid_expr
 
 	push di  ; Save expr.
 	mov WORD di, [condsym]
 	call special_form_placeholder
 	pop di  ; Restore expr.
 
+	;; Return NULL.
 	mov ax, NULL
 	jmp .return
 
@@ -1427,20 +1441,27 @@ eval:
 	;; If (car expr) is the lambda symbol, print a placeholder message and
 	;; return NULL.
 
+	;; Check if (car expr) is the lambda symbol.
 	push di  ; Save expr.
 	mov WORD di, [di+CAR]
 	mov WORD si, [lambdasym]
 	call equal
 	pop di  ; Restore expr.
 
+	;; If not, don't evaluate expr as a lambda expression.
 	cmp ax, 0
 	je .skiplambda
+
+	;; Print a placeholder message:
+
+	call invalid_expr
 
 	push di  ; Save expr.
 	mov WORD di, [lambdasym]
 	call special_form_placeholder
 	pop di  ; Restore expr.
 
+	;; Return NULL.
 	mov ax, NULL
 	jmp .return
 
@@ -1455,9 +1476,11 @@ eval:
 	;; special form, so expr must represent a function application; print a
 	;; placeholder message and return NULL.
 
+	call invalid_expr
+
 	push di  ; Save expr.
 	mov di, .functionstr
-	call println
+	call print
 	pop di  ; Restore expr.
 
 	mov ax, NULL
@@ -1538,7 +1561,7 @@ special_form_placeholder:
 
 	push di  ; Save symbol.
 	mov di, .message1
-	call println
+	call print
 	pop di  ; Restore symbol.
 
 	;; Print the special form's symbol.
