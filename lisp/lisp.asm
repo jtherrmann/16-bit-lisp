@@ -3,7 +3,6 @@
 ;;; - make sure procedures preserve ax when they call other procedures that
 ;;;   return in ax
 ;;; - update docstring comments for consistent formatting
-;;; - command for printing just free count w/o free list
 
 	BITS 16
 
@@ -2335,17 +2334,21 @@ invalid_command:
 
 	;; The help command prints the first help_list_len commands from the
 	;; command table.
-	help_list_len dw 5  ; TODO: check val is correct
+	help_list_len dw 6  ; TODO: check val is correct
 
 ;;; Command strings:
 
-	freelist_str db CMD_PREFIX,"free",0
+	freecount_str db CMD_PREFIX,"free",0
+	freelist_str db CMD_PREFIX,"freelist",0
 	globalenv_str db CMD_PREFIX,"genv",0
 	help_str db CMD_PREFIX,"help",0
 	keymap_str db CMD_PREFIX,"keymap",0
 	reboot_str db CMD_PREFIX,"restart",0
 
 command_table:
+	dw freecount_str
+	dw print_freecount
+
 	dw freelist_str
 	dw print_freelist
 
@@ -2371,6 +2374,28 @@ command_table:
 ;;; Debugging utilities
 ;;; ===========================================================================
 
+print_freecount:
+;;; Print the number of free Lisp objects.
+	;; save
+	push di
+
+	jmp .start
+
+	.str db "free objects: ",0
+
+	.start:
+
+	mov di, .str
+	call println
+
+	mov WORD di, [freecount]
+	call print_num
+
+	;; restore
+	pop di
+
+	ret
+
 print_freelist:
 ;;; Print the list of free Lisp objects.
 	;; save
@@ -2383,7 +2408,6 @@ print_freelist:
 	.colonstr db ": ",0
 	.ptrstr db " -> ",0
 	.nullstr db "NULL",0
-	.freecountstr db "free objects: ",0
 
 	.start:
 
@@ -2423,17 +2447,14 @@ print_freelist:
 	cmp bx, NULL
 	jne .loop
 
+	;; Print NULL.
 	mov di, .nullstr
 	call print
 
 	call print_newline
 
-	;; Print the stored free objects count.
-	mov di, .freecountstr
-	call println
-	mov WORD di, [freecount]
-	call print_num
-
+	;; Print the number of free objects.
+	call print_freecount
 	call print_newline
 
 	;; restore
