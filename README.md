@@ -42,9 +42,17 @@ implementation details)
 ### Constructing objects
 
 TODO:
-- implementation details of a Lisp object
-- implementation details of the free list
-- note that currently no GC, so eventually runs out of memory
+- summary of Lisp object implementation
+  - maybe (an) illustration(s)
+  - C union equivalent / pseudocode (e.g. w/o types)
+- free list implementation
+  - initializing & using the free list
+  - note that currently no GC, so eventually runs out of memory
+
+![Lisp object](images/lisp-object.png)
+
+For more details, see the comments under the "Lisp object" section near the top
+of [lisp.asm](lisp/lisp.asm).
 
 ### Converting input to an AST
 
