@@ -49,10 +49,13 @@ TODO:
   - initializing & using the free list
   - note that currently no GC, so eventually runs out of memory
 
-![Lisp object](images/lisp-object.png)
+For a detailed explanation of how Lisp objects are implemented, see the
+commented macro definitions under the "Lisp object" heading near the top of
+[lisp.asm](lisp/lisp.asm).
 
-For more details, see the comments under the "Lisp object" section near the top
-of [lisp.asm](lisp/lisp.asm).
+A Lisp object can be visualized according to the following illustration:
+
+![Lisp object](images/lisp-object.png)
 
 ### Converting input to an AST
 
