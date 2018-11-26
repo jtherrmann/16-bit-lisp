@@ -1270,6 +1270,12 @@ eval:
 	cmp WORD di, [emptylist]
 	je .selfeval
 
+	cmp BYTE [di+TYPE], TYPE_BUILTIN_1
+	je .selfeval
+
+	cmp BYTE [di+TYPE], TYPE_BUILTIN_2
+	je .selfeval
+
 	jmp .skipselfeval
 
 	.selfeval:
