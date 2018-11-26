@@ -1237,6 +1237,7 @@ eval:
 
 	.1argstr db " takes 1 argument",0
 	.2argstr db " takes 2 arguments",0
+	.builtinerrstr db " signaled an error",0
 	.notfuncstr db " is not a function",0
 	.bugstr db "You have found a bug: cannot eval expression",0
 
@@ -1576,9 +1577,6 @@ eval:
 	;; Function application
 	;; --------------------------------------------------------------------
 
-	;; TODO: check if builtin func signaled error by returning NULL (if
-	;; implement builtins that do that); see Lisp-in-C
-
 	;; If we've reached this point then expr is a list that is not a
 	;; special form, so expr must represent a function application.
 
@@ -1626,7 +1624,7 @@ eval:
 	pop di  ; Restore expr.
 
 	;; Return the result.
-	jmp .return
+	jmp .builtinreturn
 
 	;; Wrong number of arguments. Notify the user and return NULL.
 	.builtin1argsnum:
@@ -1697,7 +1695,7 @@ eval:
 	pop di  ; Restore expr.
 
 	;; Return the result.
-	jmp .return
+	jmp .builtinreturn
 
 	;; Wrong number of arguments. Notify the user and return NULL.
 	.builtin2argsnum:
@@ -1715,6 +1713,30 @@ eval:
 
 	;; Return NULL.
 	mov ax, NULL
+	jmp .return
+
+	;; Return the result of applying a builtin function.
+	.builtinreturn:
+
+	;; Return the result unless it's NULL.
+	cmp ax, NULL
+	jne .return
+
+	;; The result is NULL. Notify the user and return NULL:
+
+	call invalid_expr
+
+	push di  ; Save expr.
+
+	mov di, bx  ; Builtin function.
+	call print_obj
+
+	mov di, .builtinerrstr
+	call print
+
+	pop di  ; Restore expr.
+
+	;; Return NULL.
 	jmp .return
 
 	.skipbuiltin2:
@@ -2476,8 +2498,32 @@ builtin_car:
 ;;;
 ;;; Post:
 ;;; - ax points to the result.
-	;; TODO: typecheck di as a pair
+;;;
+;;; On error:
+;;; - Return NULL.
+	;; save
+	push dx
+	push si
+
+	mov si, type_pair_str
+	mov BYTE dl, TYPE_PAIR
+	call typecheck
+
+	cmp ax, 0
+	je .error
+
 	mov WORD ax, [di+CAR]
+	jmp .return
+
+	.error:
+	mov ax, NULL
+
+	.return:
+
+	;; restore
+	pop si
+	pop dx
+
 	ret
 
 builtin_cdr:
@@ -2488,8 +2534,81 @@ builtin_cdr:
 ;;;
 ;;; Post:
 ;;; - ax points to the result.
-	;; TODO: typecheck di as a pair
+;;;
+;;; On error:
+;;; - Return NULL.
+	;; save
+	push dx
+	push si
+
+	mov si, type_pair_str
+	mov BYTE dl, TYPE_PAIR
+	call typecheck
+
+	cmp ax, 0
+	je .error
+
 	mov WORD ax, [di+CDR]
+	jmp .return
+
+	.error:
+	mov ax, NULL
+
+	.return:
+
+	;; restore
+	pop si
+	pop dx
+
+	ret
+
+typecheck:
+;;; Typecheck an argument to a builtin function.
+;;;
+;;; Pre:
+;;; - di points to the argument.
+;;; - si points to a string representing the type's name.
+;;; - dl contains the type.
+;;;
+;;; Post:
+;;; - ax is 1 if the argument is of the specified type and 0 otherwise.
+	jmp .start
+
+	.str1 db "Type error: ",0
+	.str2 db " is not a ",0
+
+	.start:
+	
+	cmp BYTE [di+TYPE], dl
+	je .true
+
+	.false:
+	push di  ; Save arg.
+	mov di, .str1
+	call println
+	pop di  ; Restore arg.
+
+	call print_obj
+
+	push di  ; Save arg.
+
+	mov di, .str2
+	call print
+
+	mov di, si  ; Type name str.
+	call print
+
+	pop di  ; Restore arg.
+
+	call print_newline
+
+	mov ax, 0
+	jmp .return
+
+	.true:
+	mov ax, 1
+
+	.return:
 	ret
 
 
@@ -3173,6 +3292,9 @@ reboot_comp:
 	definesym dw 0x0000
 	condsym dw 0x0000
 	lambdasym dw 0x0000
+
+	;; Type names used for printing type errors.
+	type_pair_str db "pair",0
 
 	;; The object heap.
 	obj_heap times OBJ_HEAP_SIZE db 0
