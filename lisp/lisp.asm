@@ -1249,11 +1249,12 @@ eval:
 
 	jmp .start
 
+	.notpairstr1 db "You have found a bug: ",0
+	.notpairstr2 db " is not a pair.",0
 	.1argstr db " takes 1 argument",0
 	.2argstr db " takes 2 arguments",0
 	.builtinerrstr db " signaled an error",0
 	.notfuncstr db " is not a function",0
-	.bugstr db "You have found a bug: cannot eval expression",0
 
 	.start:
 
@@ -1315,6 +1316,29 @@ eval:
 	jmp .return
 
 	.skipsym:
+
+	;; --------------------------------------------------------------------
+
+
+	;; Check if expr is a pair.
+	cmp BYTE [di+TYPE], TYPE_PAIR
+	je .ispair
+
+	;; expr is not a pair. This is a bug. Notify the user and crash:
+
+	push di  ; Save expr.
+	mov di, .notpairstr1
+	call println
+	pop di  ; Restore expr.
+
+	call print_obj
+
+	mov di, .notpairstr2
+	call print
+
+	jmp lisp_crash
+
+	.ispair:
 
 
 	;; --------------------------------------------------------------------
