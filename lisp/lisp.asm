@@ -349,7 +349,7 @@ make_emptylist:
 ;;; Construct the Lisp empty list object.
 	;; save
 	push ax
-	push di
+	push dx
 
 	mov BYTE dl, TYPE_UNIQUE
 	call get_obj
@@ -357,7 +357,7 @@ make_emptylist:
 	mov WORD [emptylist], ax
 
 	;; restore
-	pop di
+	pop dx
 	pop ax
 
 	ret
@@ -368,16 +368,16 @@ get_int:
 ;;; Post: ax points to the object.
 	;; save
 	push bx
+	push dx
 
-	push di  ; Save int value.
 	mov BYTE dl, TYPE_INT
 	call get_obj
-	pop di  ; Restore int value.
 
 	mov bx, ax
 	mov WORD [bx+VAL], di
 
 	;; restore
+	pop dx
 	pop bx
 
 	ret
@@ -413,13 +413,12 @@ get_sym:
 	push bx
 	push cx
 	push di
+	push dx
 	push si
 
 	;; Construct the symbol object.
-	push di  ; Save symbol str.
 	mov BYTE dl, TYPE_SYMBOL
 	call get_obj
-	pop di  ; Restore symbol str.
 
 	;; Iterate through the given symbol str and copy it into the symbol
 	;; object.
@@ -460,6 +459,7 @@ get_sym:
 
 	;; restore
 	pop si
+	pop dx
 	pop di
 	pop cx
 	pop bx
@@ -472,17 +472,17 @@ cons:
 ;;; Post: ax points to the object.
 	;; save
 	push bx
+	push dx
 
-	push di  ; Save car.
 	mov BYTE dl, TYPE_PAIR
 	call get_obj
-	pop di  ; Restore car.
 
 	mov bx, ax
 	mov WORD [bx+CAR], di
 	mov WORD [bx+CDR], si
 
 	;; restore
+	pop dx
 	pop bx
 
 	ret
@@ -497,16 +497,16 @@ get_builtin_2:
 ;;; - ax points to the object.
 	;; save
 	push bx
+	push dx
 
-	push di  ; Save assembly function pointer.
 	mov BYTE dl, TYPE_BUILTIN_2
 	call get_obj
-	pop di  ; Restore assembly function pointer.
 
 	mov bx, ax
 	mov WORD [bx+FUNC], di
 
 	;; restore
+	pop dx
 	pop bx
 
 	ret
@@ -1119,6 +1119,7 @@ badinput:
 ;;; Pre: di points to the char.
 	;; save
 	push cx
+	push dx
 
 	jmp .start
 
@@ -1156,6 +1157,7 @@ badinput:
 	call putc
 
 	;; restore
+	pop dx
 	pop cx
 
 	ret
@@ -1944,6 +1946,7 @@ print_pair:
 ;;; Pre: di points to the pair.
 	;; save
 	push di
+	push dx
 
 	jmp .start
 
@@ -1955,10 +1958,8 @@ print_pair:
 	;; encounter an object that is not a pair.
 
 	;; Print the opening '('.
-	push di  ; Save the current object.
 	mov dl, '('
 	call putc
-	pop di  ; Restore the current object.
 
 	.loop:
 
@@ -1979,10 +1980,8 @@ print_pair:
 	jne .break
 
 	;; Print a space.
-	push di  ; Save the current object.
 	mov dl, ' '
 	call putc
-	pop di  ; Restore the current object.
 
 	jmp .loop
 
@@ -2009,6 +2008,7 @@ print_pair:
 	call putc
 
 	;; restore
+	pop dx
 	pop di
 
 	ret
