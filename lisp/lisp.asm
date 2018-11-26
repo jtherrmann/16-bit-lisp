@@ -298,6 +298,7 @@ make_initial_objs:
 	.consstr db "cons",0
 	.carstr db "car",0
 	.cdrstr db "cdr",0
+	.evalstr db "eval",0
 
 	.start:
 
@@ -357,6 +358,17 @@ make_initial_objs:
 
 	;; Make the cdr symbol and bind it to the cdr function.
 	mov di, .cdrstr
+	call get_sym
+	mov di, ax
+	call bind
+
+	;; Make the eval function.
+	mov di, eval
+	call get_builtin_1
+	mov si, ax
+
+	;; Make the eval symbol and bind it to the eval function.
+	mov di, .evalstr
 	call get_sym
 	mov di, ax
 	call bind
@@ -1214,6 +1226,8 @@ badinput:
 ;;; Eval
 ;;; ===========================================================================
 
+;;; TODO: modify for use as a builtin (see lisp-in-c)
+;;; TODO: add bug catch for unrecognized expr
 eval:
 ;;; Evaluate an expression.
 ;;;
