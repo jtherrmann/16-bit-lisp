@@ -74,9 +74,9 @@
 	%define CAR 1
 	%define CDR 3
 
-	;; Object type: TYPE_BUILTIN_2
-	;; Field type:  pointer to assembly function
-	;; Field size:  WORD
+	;; Object types: TYPE_BUILTIN_1, TYPE_BUILTIN_2
+	;; Field type:   pointer to assembly function
+	;; Field size:   WORD
 	%define FUNC 1
 
 
@@ -86,8 +86,9 @@
 	%define TYPE_INT 0x02
 	%define TYPE_SYMBOL 0x03
 	%define TYPE_PAIR 0x04
-	;; TODO: add support for TYPE_BUILTIN_2 in: equal, others?
-	%define TYPE_BUILTIN_2 0x05  ; 2-arg builtin function
+	;; TODO: add support for builtins in: equal, others?
+	%define TYPE_BUILTIN_1 0x05  ; 1-arg builtin function
+	%define TYPE_BUILTIN_2 0x06  ; 2-arg builtin function
 
 
 ;;; Symbol name size:
@@ -295,6 +296,7 @@ make_initial_objs:
 
 	;; Builtin function names.
 	.consstr db "cons",0
+	.carstr db "car",0
 
 	.start:
 
@@ -325,8 +327,6 @@ make_initial_objs:
 	call get_sym
 	mov WORD [lambdasym], ax
 
-	;; TODO: prefix builtins w/ b_ (so b_cons)
-
 	;; Make the cons function.
 	mov di, cons
 	call get_builtin_2
@@ -334,6 +334,17 @@ make_initial_objs:
 
 	;; Make the cons symbol and bind it to the cons function.
 	mov di, .consstr
+	call get_sym
+	mov di, ax
+	call bind
+
+	;; Make the car function.
+	mov di, builtin_car
+	call get_builtin_1
+	mov si, ax
+
+	;; Make the car symbol and bind it to the car function.
+	mov di, .carstr
 	call get_sym
 	mov di, ax
 	call bind
@@ -480,6 +491,30 @@ cons:
 	mov bx, ax
 	mov WORD [bx+CAR], di
 	mov WORD [bx+CDR], si
+
+	;; restore
+	pop dx
+	pop bx
+
+	ret
+
+get_builtin_1:
+;;; Construct a builtin Lisp function that takes 1 argument.
+;;; 
+;;; Pre:
+;;; - di points to the assembly function.
+;;;
+;;; Post:
+;;; - ax points to the object.
+	;; save
+	push bx
+	push dx
+
+	mov BYTE dl, TYPE_BUILTIN_1
+	call get_obj
+
+	mov bx, ax
+	mov WORD [bx+FUNC], di
 
 	;; restore
 	pop dx
@@ -1529,6 +1564,9 @@ eval:
 	;; Function application
 	;; --------------------------------------------------------------------
 
+	;; TODO: check if builtin func signaled error by returning NULL (if
+	;; implement builtins that do that); see Lisp-in-C
+
 	;; If we've reached this point then expr is a list that is not a
 	;; special form, so expr must represent a function application.
 
@@ -1542,6 +1580,61 @@ eval:
 	;; Check if eval returned NULL.
 	cmp ax, NULL
 	je .return
+
+	;; Check if the function is a 1-arg builtin.
+	mov bx, ax
+	cmp BYTE [bx+TYPE], TYPE_BUILTIN_1
+	jne .skipbuiltin1
+
+	;; Get the length of (cdr expr).
+	push di  ; Save expr.
+	mov WORD di, [di+CDR]
+	call length
+	pop di  ; Restore expr.
+
+	;; expr is invalid if length (cdr expr) != 1.
+	cmp ax, 1
+	jne .builtin1argsnum
+
+	;; Eval (car (cdr expr)) to get the arg.
+	push di  ; Save expr.
+	mov WORD di, [di+CDR]
+	mov WORD di, [di+CAR]
+	call eval
+	pop di  ; Restore expr.
+
+	;; Check if eval returned NULL.
+	cmp ax, NULL
+	je .return
+
+	;; Call the assembly function.
+	push di  ; Save expr.
+	mov di, ax  ; Arg.
+	call WORD [bx+FUNC]
+	pop di  ; Restore expr.
+
+	;; Return the result.
+	jmp .return
+
+	;; Wrong number of arguments. Notify the user and return NULL.
+	.builtin1argsnum:
+	call invalid_expr
+
+	push di  ; Save expr.
+
+	mov di, bx  ; Builtin function.
+	call print_obj
+
+	mov di, .1argstr
+	call print
+
+	pop di  ; Restore expr.
+
+	;; Return NULL.
+	mov ax, NULL
+	jmp .return
+
+	.skipbuiltin1:
 
 	;; Check if the function is a 2-arg builtin.
 	mov bx, ax
@@ -1593,9 +1686,6 @@ eval:
 
 	;; Return the result.
 	jmp .return
-
-	;; TODO: check if builtin func signaled error by returning NULL (if
-	;; implement builtins that do that); see Lisp-in-C
 
 	;; Wrong number of arguments. Notify the user and return NULL.
 	.builtin2argsnum:
@@ -1793,8 +1883,15 @@ print_obj:
 
 	;; Builtin function:
 
+	cmp BYTE [di+TYPE], TYPE_BUILTIN_1
+	je .builtin
+
 	cmp BYTE [di+TYPE], TYPE_BUILTIN_2
-	jne .skipbuiltin
+	je .builtin
+
+	jmp .skipbuiltin
+
+	.builtin:
 
 	mov di, .builtinstr
 	call print
@@ -2019,7 +2116,8 @@ print_pair:
 ;;; ===========================================================================
 
 equal:
-;;; Builtin function equal.
+;;; Return whether two Lisp objects are equal.
+;;; 
 ;;; Pre:
 ;;; - di points to the first object.
 ;;; - si points to the second object.
@@ -2349,6 +2447,25 @@ lookup:
 	;; restore
 	pop si
 
+	ret
+
+
+;;; ===========================================================================
+;;; Misc builtin functions
+;;; ===========================================================================
+;;; 
+;;; Builtin functions that do not belong in one of the previous sections.
+
+builtin_car:
+;;; Builtin function car.
+;;;
+;;; Pre:
+;;; - di points to the argument.
+;;;
+;;; Post:
+;;; - ax points to the result.
+	;; TODO: typecheck di as a pair
+	mov WORD ax, [di+CAR]
 	ret
 
 
