@@ -36,34 +36,8 @@ the same in 16-bit NASM.
 I have met my [goals](#project-goals) for the end of the semester and have
 begun implementing [expression evaluation](#expressions).
 
-TODO: documentation/presentation on how the goals have been met (e.g.
-implementation details)
-
-### Constructing objects
-
-TODO:
-- summary of Lisp object implementation
-  - maybe (an) illustration(s)
-  - C union equivalent / pseudocode (e.g. w/o types)
-- free list implementation
-  - initializing & using the free list
-  - note that currently no GC, so eventually runs out of memory
-
-For a detailed explanation of how Lisp objects are implemented, see the
-commented macro definitions under the "Lisp object" heading near the top of
-[lisp.asm](lisp/lisp.asm).
-
-A Lisp object can be visualized according to the following illustration:
-
-![Lisp object](images/lisp-object.png)
-
-### Converting input to an AST
-
-TODO
-
-### Printing objects
-
-TODO
+Also see the [presentation
+slides](https://docs.google.com/presentation/d/1YZw3_q5HHI1MRNqKHHEMUKD32Zv9E9hfc_6kBKyDhMs/edit?usp=sharing).
 
 ## Getting started
 
