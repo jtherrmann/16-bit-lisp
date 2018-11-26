@@ -297,6 +297,7 @@ make_initial_objs:
 	;; Builtin function names.
 	.consstr db "cons",0
 	.carstr db "car",0
+	.cdrstr db "cdr",0
 
 	.start:
 
@@ -345,6 +346,17 @@ make_initial_objs:
 
 	;; Make the car symbol and bind it to the car function.
 	mov di, .carstr
+	call get_sym
+	mov di, ax
+	call bind
+
+	;; Make the cdr function.
+	mov di, builtin_cdr
+	call get_builtin_1
+	mov si, ax
+
+	;; Make the cdr symbol and bind it to the cdr function.
+	mov di, .cdrstr
 	call get_sym
 	mov di, ax
 	call bind
@@ -2466,6 +2478,18 @@ builtin_car:
 ;;; - ax points to the result.
 	;; TODO: typecheck di as a pair
 	mov WORD ax, [di+CAR]
+	ret
+
+builtin_cdr:
+;;; Builtin function cdr.
+;;;
+;;; Pre:
+;;; - di points to the argument.
+;;;
+;;; Post:
+;;; - ax points to the result.
+	;; TODO: typecheck di as a pair
+	mov WORD ax, [di+CDR]
 	ret
 
 
