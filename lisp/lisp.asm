@@ -1186,6 +1186,8 @@ eval:
 
 	jmp .start
 
+	.1argstr db " takes 1 argument",0
+	.2argstr db " takes 2 arguments",0
 	.notfuncstr db " is not a function",0
 	.bugstr db "You have found a bug: cannot eval expression",0
 
@@ -1258,12 +1260,6 @@ eval:
 	;; If (car expr) is the quote symbol, return (car (cdr expr)).
 	;; For example, (quote (1 2 3)) evaluates to (1 2 3).
 
-	jmp .quotestart
-
-	.quoteinvalidstr db " takes 1 argument",0
-
-	.quotestart:
-
 	;; Check if (car expr) is the quote symbol.
 	push di  ; Save expr.
 	mov WORD di, [di+CAR]
@@ -1301,7 +1297,7 @@ eval:
 	mov WORD di, [quotesym]
 	call print_obj
 
-	mov di, .quoteinvalidstr
+	mov di, .1argstr
 	call print
 
 	pop di  ; Restore expr.
@@ -1325,7 +1321,6 @@ eval:
 
 	jmp .definestart
 
-	.defineargsnumstr db " takes 2 arguments",0
 	.namenotsymbolstr db " is not a symbol",0
 	.toplevelstr db " can only occur at the top level",0
 
@@ -1429,7 +1424,7 @@ eval:
 	mov WORD di, [definesym]
 	call print_obj
 
-	mov di, .defineargsnumstr
+	mov di, .2argstr
 	call print
 
 	pop di  ; Restore expr.
@@ -1551,7 +1546,15 @@ eval:
 	cmp BYTE [bx+TYPE], TYPE_BUILTIN_2
 	jne .skipbuiltin2
 
-	;; TODO: error if length cdr(expr) != 2
+	;; Get the length of (cdr expr).
+	push di  ; Save expr.
+	mov WORD di, [di+CDR]
+	call length
+	pop di  ; Restore expr.
+
+	;; expr is invalid if length (cdr expr) != 2.
+	cmp ax, 2
+	jne .builtin2argsnum
 
 	;; Eval (car (cdr expr)) to get the first arg.
 	push di  ; Save expr.
@@ -1591,6 +1594,24 @@ eval:
 
 	;; TODO: check if builtin func signaled error by returning NULL (if
 	;; implement builtins that do that); see Lisp-in-C
+
+	;; Wrong number of arguments. Notify the user and return NULL.
+	.builtin2argsnum:
+	call invalid_expr
+
+	push di  ; Save expr.
+
+	mov di, bx  ; Builtin function.
+	call print_obj
+
+	mov di, .2argstr
+	call print
+
+	pop di  ; Restore expr.
+
+	;; Return NULL.
+	mov ax, NULL
+	jmp .return
 
 	.skipbuiltin2:
 
