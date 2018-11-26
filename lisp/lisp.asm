@@ -74,6 +74,11 @@
 	%define CAR 1
 	%define CDR 3
 
+	;; Object type: TYPE_BUILTIN_2
+	;; Field type:  pointer to assembly function
+	;; Field size:  WORD
+	%define FUNC 1
+
 
 ;;; Lisp object types:
 
@@ -81,6 +86,8 @@
 	%define TYPE_INT 0x02
 	%define TYPE_SYMBOL 0x03
 	%define TYPE_PAIR 0x04
+	;; TODO: add support for TYPE_BUILTIN_2 in: equal, others?
+	%define TYPE_BUILTIN_2 0x05  ; 2-arg builtin function
 
 
 ;;; Symbol name size:
@@ -276,13 +283,18 @@ make_initial_objs:
 	;; save
 	push ax
 	push di
+	push si
 
 	jmp .start
 
+	;; Special form symbols.
 	.quotestr db "quote",0
 	.definestr db "define",0
 	.condstr db "cond",0
 	.lambdastr db "lambda",0
+
+	;; Builtin function names.
+	.consstr db "cons",0
 
 	.start:
 
@@ -313,7 +325,21 @@ make_initial_objs:
 	call get_sym
 	mov WORD [lambdasym], ax
 
+	;; TODO: prefix builtins w/ b_ (so b_cons)
+
+	;; Make the cons function.
+	mov di, cons
+	call get_builtin_2
+	mov si, ax
+
+	;; Make the cons symbol and bind it to the cons function.
+	mov di, .consstr
+	call get_sym
+	mov di, ax
+	call bind
+
 	;; restore
+	pop si
 	pop di
 	pop ax
 
@@ -455,6 +481,30 @@ cons:
 	mov bx, ax
 	mov WORD [bx+CAR], di
 	mov WORD [bx+CDR], si
+
+	;; restore
+	pop bx
+
+	ret
+
+get_builtin_2:
+;;; Construct a builtin Lisp function that takes 2 arguments.
+;;; 
+;;; Pre:
+;;; - di points to the assembly function.
+;;;
+;;; Post:
+;;; - ax points to the object.
+	;; save
+	push bx
+
+	push di  ; Save assembly function pointer.
+	mov BYTE dl, TYPE_BUILTIN_2
+	call get_obj
+	pop di  ; Restore assembly function pointer.
+
+	mov bx, ax
+	mov WORD [bx+FUNC], di
 
 	;; restore
 	pop bx
@@ -1130,15 +1180,14 @@ eval:
 ;;; - Return NULL.
 
 	;; save
+	push bx
+	push cx
 	push si
 
 	jmp .start
 
-	.functionstr:
-	db "Function application not yet implemented",0
-
-	.bugstr:
-	db "You have found a bug: cannot eval expression",0
+	.notfuncstr db " is not a function",0
+	.bugstr db "You have found a bug: cannot eval expression",0
 
 	.start:
 
@@ -1484,16 +1533,83 @@ eval:
 	;; --------------------------------------------------------------------
 
 	;; If we've reached this point then expr is a list that is not a
-	;; special form, so expr must represent a function application; print a
-	;; placeholder message and return NULL.
+	;; special form, so expr must represent a function application.
+
+	;; Eval (car expr) to get the function.
+	push di  ; Save expr.
+	mov WORD di, [di+CAR]
+	mov BYTE [toplevel], 0
+	call eval
+	pop di  ; Restore expr.
+
+	;; Check if eval returned NULL.
+	cmp ax, NULL
+	je .return
+
+	;; Check if the function is a 2-arg builtin.
+	mov bx, ax
+	cmp BYTE [bx+TYPE], TYPE_BUILTIN_2
+	jne .skipbuiltin2
+
+	;; TODO: error if length cdr(expr) != 2
+
+	;; Eval (car (cdr expr)) to get the first arg.
+	push di  ; Save expr.
+	mov WORD di, [di+CDR]
+	mov WORD di, [di+CAR]
+	call eval
+	pop di  ; Restore expr.
+
+	;; Check if eval returned NULL.
+	cmp ax, NULL
+	je .return
+
+	;; Save first arg.
+	mov cx, ax
+
+	;; Eval (car (cdr (cdr expr))) to get the second arg.
+	push di  ; Save expr.
+	mov WORD di, [di+CDR]
+	mov WORD di, [di+CDR]
+	mov WORD di, [di+CAR]
+	call eval
+	pop di  ; Restore expr.
+
+	;; Check if eval returned NULL.
+	cmp ax, NULL
+	je .return
+
+	;; Call the assembly function.
+	push di  ; Save expr.
+	mov di, cx  ; First arg.
+	mov si, ax  ; Second arg.
+	call WORD [bx+FUNC]
+	pop di  ; Restore expr.
+
+	;; Return the result.
+	jmp .return
+
+	;; TODO: check if builtin func signaled error by returning NULL (if
+	;; implement builtins that do that); see Lisp-in-C
+
+	.skipbuiltin2:
+
+	;; The value of (car expr) is not a function. Notify the user and
+	;; return NULL:
 
 	call invalid_expr
 
 	push di  ; Save expr.
-	mov di, .functionstr
+
+	mov di, bx
+	call print_obj
+
+	mov di, .notfuncstr
 	call print
+
 	pop di  ; Restore expr.
 
+	;; Return NULL.
 	mov ax, NULL
 	jmp .return
 
@@ -1504,6 +1620,8 @@ eval:
 
 	;; restore
 	pop si
+	pop cx
+	pop bx
 
 	ret
 
@@ -1602,7 +1720,7 @@ print_obj:
 	jmp .start
 
 	.emptystr db "()",0
-
+	.builtinstr db "#<builtin function>",0
 	.bugstr:
 	db "You have found a bug: cannot print object of unrecognized type",0
 
@@ -1649,6 +1767,17 @@ print_obj:
 	jmp .return
 
 	.skipint:
+
+	;; Builtin function:
+
+	cmp BYTE [di+TYPE], TYPE_BUILTIN_2
+	jne .skipbuiltin
+
+	mov di, .builtinstr
+	call print
+	jmp .return
+
+	.skipbuiltin:
 
 	;; Handle unrecognized type.
 	mov di, .bugstr
