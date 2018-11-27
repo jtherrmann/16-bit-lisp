@@ -68,16 +68,21 @@
 	;; see the documentation for the get_sym function.
 	%define NAME 1
 
+	;; Object types: TYPE_BUILTIN_1, TYPE_BUILTIN_2
+	;; Field type:   pointer to assembly function
+	;; Field size:   WORD
+	%define FUNC 1
+
 	;; Object type: TYPE_PAIR
 	;; Field type:  pointer to Lisp object
 	;; Field size:  WORD
 	%define CAR 1
 	%define CDR 3
 
-	;; Object types: TYPE_BUILTIN_1, TYPE_BUILTIN_2
-	;; Field type:   pointer to assembly function
-	;; Field size:   WORD
-	%define FUNC 1
+	;; Object type: TYPE_PAIR
+	;; Field type:  boolean (0 or 1)
+	;; Field size:  BYTE
+	%define IS_LIST 5
 
 
 ;;; Lisp object types:
@@ -512,9 +517,34 @@ cons:
 	mov BYTE dl, TYPE_PAIR
 	call get_obj
 
+	;; Set the pair's car and cdr.
 	mov bx, ax
 	mov WORD [bx+CAR], di
 	mov WORD [bx+CDR], si
+
+	;; A list is the empty list or a pair whose cdr is a list. Determine
+	;; whether the new pair is a list.
+
+	;; The new pair is a list if its cdr is the empty list.
+	cmp WORD si, [emptylist]
+	je .islist
+
+	;; Otherwise, the new pair is not a list if its cdr is not a pair.
+	cmp BYTE [si+TYPE], TYPE_PAIR
+	jne .notlist
+
+	;; Otherwise, the new pair is a list if its cdr is a list.
+	cmp BYTE [si+IS_LIST], 1
+	je .islist
+
+	.notlist:
+	mov BYTE [bx+IS_LIST], 0
+	jmp .return
+
+	.islist:
+	mov BYTE [bx+IS_LIST], 1
+
+	.return:
 
 	;; restore
 	pop dx
@@ -1251,6 +1281,7 @@ eval:
 
 	.notpairstr1 db "You have found a bug: ",0
 	.notpairstr2 db " is not a pair.",0
+	.notliststr db " is not a list",0
 	.1argstr db " takes 1 argument",0
 	.2argstr db " takes 2 arguments",0
 	.builtinerrstr db " signaled an error",0
@@ -1344,7 +1375,31 @@ eval:
 
 	jmp lisp_crash
 
+	;; expr is a pair.
 	.ispair:
+
+
+	;; Check if expr is a list.
+	cmp BYTE [di+IS_LIST], 1
+	je .islist
+
+	;; expr is not a list and so cannot be evaluated. Notify the user and
+	;; return NULL:
+
+	call invalid_expr
+
+	call print_obj
+
+	push di  ; Save expr.
+	mov di, .notliststr
+	call print
+	pop di  ; Restore expr.
+
+	mov ax, NULL
+	jmp .return
+
+	;; expr is a list.
+	.islist:
 
 
 	;; --------------------------------------------------------------------
