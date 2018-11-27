@@ -1256,8 +1256,6 @@ badinput:
 ;;; Eval
 ;;; ===========================================================================
 
-;;; TODO: modify for use as a builtin (see lisp-in-c)
-;;; TODO: add bug catch for unrecognized expr
 eval:
 ;;; Evaluate an expression.
 ;;;
@@ -1286,6 +1284,9 @@ eval:
 	.2argstr db " takes 2 arguments",0
 	.builtinerrstr db " signaled an error",0
 	.notfuncstr db " is not a function",0
+	.bugstr:
+	db "You have found a bug: somehow reached the end of eval (should "
+	db "never happen).",0
 
 	.start:
 
@@ -1860,6 +1861,12 @@ eval:
 	jmp .return
 
 	;; --------------------------------------------------------------------
+
+
+	;; We should never reach this point. Notify the user and crash.
+	mov di, .bugstr
+	call println
+	jmp lisp_crash
 
 
 	.return:
