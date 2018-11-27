@@ -73,6 +73,11 @@
 	;; Field size:   WORD
 	%define FUNC 1
 
+	;; Object types: TYPE_BUILTIN_1, TYPE_BUILTIN_2
+	;; Field type:   pointer to Lisp symbol
+	;; Field size:   WORD
+	%define FUNC_NAME 3
+
 	;; Object type: TYPE_PAIR
 	;; Field type:  pointer to Lisp object
 	;; Field size:  WORD
@@ -334,48 +339,68 @@ make_initial_objs:
 	call get_sym
 	mov WORD [lambdasym], ax
 
-	;; Make the cons function.
-	mov di, cons
-	call get_builtin_2
-	mov si, ax
+	;; Make the builtin function cons:
 
-	;; Make the cons symbol and bind it to the cons function.
+	;; Make the symbol.
 	mov di, .consstr
 	call get_sym
-	mov di, ax
+
+	;; Make the function.
+	mov di, cons
+	mov si, ax  ; Symbol.
+	call get_builtin_2
+
+	;; Bind the symbol to the function.
+	mov di, si  ; Symbol.
+	mov si, ax  ; Function.
 	call bind
 
-	;; Make the car function.
-	mov di, builtin_car
-	call get_builtin_1
-	mov si, ax
+	;; Make the builtin function car:
 
-	;; Make the car symbol and bind it to the car function.
+	;; Make the symbol.
 	mov di, .carstr
 	call get_sym
-	mov di, ax
+
+	;; Make the function.
+	mov di, builtin_car
+	mov si, ax  ; Symbol.
+	call get_builtin_1
+
+	;; Bind the symbol to the function.
+	mov di, si  ; Symbol.
+	mov si, ax  ; Function.
 	call bind
 
-	;; Make the cdr function.
-	mov di, builtin_cdr
-	call get_builtin_1
-	mov si, ax
+	;; Make the builtin function cdr:
 
-	;; Make the cdr symbol and bind it to the cdr function.
+	;; Make the symbol.
 	mov di, .cdrstr
 	call get_sym
-	mov di, ax
+
+	;; Make the function.
+	mov di, builtin_cdr
+	mov si, ax  ; Symbol.
+	call get_builtin_1
+
+	;; Bind the symbol to the function.
+	mov di, si  ; Symbol.
+	mov si, ax  ; Function.
 	call bind
 
-	;; Make the eval function.
-	mov di, eval
-	call get_builtin_1
-	mov si, ax
+	;; Make the builtin function eval:
 
-	;; Make the eval symbol and bind it to the eval function.
+	;; Make the symbol.
 	mov di, .evalstr
 	call get_sym
-	mov di, ax
+
+	;; Make the function.
+	mov di, eval
+	mov si, ax  ; Symbol.
+	call get_builtin_1
+
+	;; Bind the symbol to the function.
+	mov di, si  ; Symbol.
+	mov si, ax  ; Function.
 	call bind
 
 	;; restore
@@ -557,6 +582,7 @@ get_builtin_1:
 ;;; 
 ;;; Pre:
 ;;; - di points to the assembly function.
+;;; - si points to the symbol representing the function's name.
 ;;;
 ;;; Post:
 ;;; - ax points to the object.
@@ -569,6 +595,7 @@ get_builtin_1:
 
 	mov bx, ax
 	mov WORD [bx+FUNC], di
+	mov WORD [bx+FUNC_NAME], si
 
 	;; restore
 	pop dx
@@ -581,6 +608,7 @@ get_builtin_2:
 ;;; 
 ;;; Pre:
 ;;; - di points to the assembly function.
+;;; - si points to the symbol representing the function's name.
 ;;;
 ;;; Post:
 ;;; - ax points to the object.
@@ -593,6 +621,7 @@ get_builtin_2:
 
 	mov bx, ax
 	mov WORD [bx+FUNC], di
+	mov WORD [bx+FUNC_NAME], si
 
 	;; restore
 	pop dx
@@ -1973,7 +2002,10 @@ print_obj:
 	jmp .start
 
 	.emptystr db "()",0
-	.builtinstr db "#<builtin function>",0
+
+	.builtinstr1 db "#<function: ",0
+	.builtinstr2 db ">",0
+
 	.bugstr:
 	db "You have found a bug: cannot print object of unrecognized type",0
 
@@ -2033,13 +2065,23 @@ print_obj:
 
 	.builtin:
 
-	mov di, .builtinstr
+	push di  ; Save object.
+	mov di, .builtinstr1
 	call print
+	pop di  ; Restore object.
+
+	mov WORD di, [di+FUNC_NAME]
+	call print_obj
+
+	mov di, .builtinstr2
+	call print
+
 	jmp .return
 
 	.skipbuiltin:
 
-	;; Handle unrecognized type.
+	;; Unrecognized type:
+
 	mov di, .bugstr
 	call println
 	jmp lisp_crash
@@ -2685,10 +2727,13 @@ typecheck:
 
 	.start:
 	
+	;; Return true if the arg is of the specified type.
 	cmp BYTE [di+TYPE], dl
 	je .true
 
-	.false:
+	;; The arg is not of the specified type. Notify the user and return
+	;; false:
+
 	push di  ; Save arg.
 	mov di, .str1
 	call println
@@ -2706,11 +2751,11 @@ typecheck:
 
 	pop di  ; Restore arg.
 
-	call print_newline
-
+	;; Return false.
 	mov ax, 0
 	jmp .return
 
+	;; Return true.
 	.true:
 	mov ax, 1
 
