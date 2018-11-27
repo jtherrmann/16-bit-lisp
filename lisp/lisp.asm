@@ -339,69 +339,29 @@ make_initial_objs:
 	call get_sym
 	mov WORD [lambdasym], ax
 
-	;; Make the builtin function cons:
-
-	;; Make the symbol.
-	mov di, .consstr
-	call get_sym
-
-	;; Make the function.
+	;; Make the builtin function cons.
 	mov di, cons
-	mov si, ax  ; Symbol.
-	call get_builtin_2
+	mov si, .consstr
+	mov dl, TYPE_BUILTIN_2
+	call make_builtin_function
 
-	;; Bind the symbol to the function.
-	mov di, si  ; Symbol.
-	mov si, ax  ; Function.
-	call bind
-
-	;; Make the builtin function car:
-
-	;; Make the symbol.
-	mov di, .carstr
-	call get_sym
-
-	;; Make the function.
+	;; Make the builtin function car.
 	mov di, builtin_car
-	mov si, ax  ; Symbol.
-	call get_builtin_1
+	mov si, .carstr
+	mov dl, TYPE_BUILTIN_1
+	call make_builtin_function
 
-	;; Bind the symbol to the function.
-	mov di, si  ; Symbol.
-	mov si, ax  ; Function.
-	call bind
-
-	;; Make the builtin function cdr:
-
-	;; Make the symbol.
-	mov di, .cdrstr
-	call get_sym
-
-	;; Make the function.
+	;; Make the builtin function cdr.
 	mov di, builtin_cdr
-	mov si, ax  ; Symbol.
-	call get_builtin_1
+	mov si, .cdrstr
+	mov dl, TYPE_BUILTIN_1
+	call make_builtin_function
 
-	;; Bind the symbol to the function.
-	mov di, si  ; Symbol.
-	mov si, ax  ; Function.
-	call bind
-
-	;; Make the builtin function eval:
-
-	;; Make the symbol.
-	mov di, .evalstr
-	call get_sym
-
-	;; Make the function.
+	;; Make the builtin function eval.
 	mov di, eval
-	mov si, ax  ; Symbol.
-	call get_builtin_1
-
-	;; Bind the symbol to the function.
-	mov di, si  ; Symbol.
-	mov si, ax  ; Function.
-	call bind
+	mov si, .evalstr
+	mov dl, TYPE_BUILTIN_1
+	call make_builtin_function
 
 	;; restore
 	pop si
@@ -577,55 +537,45 @@ cons:
 
 	ret
 
-get_builtin_1:
-;;; Construct a builtin Lisp function that takes 1 argument.
-;;; 
+make_builtin_function:
+;;; Construct a builtin Lisp function and bind it to its name.
+;;;
 ;;; Pre:
 ;;; - di points to the assembly function.
-;;; - si points to the symbol representing the function's name.
-;;;
-;;; Post:
-;;; - ax points to the object.
+;;; - si points to a string representing the function's name.
+;;; - dl contains TYPE_BUILTIN_1 or TYPE_BUILTIN_2, depending on whether the
+;;;   assembly function takes 1 or 2 arguments.
+
 	;; save
+	push ax
 	push bx
-	push dx
+	push di
+	push si
 
-	mov BYTE dl, TYPE_BUILTIN_1
+	;; Construct a builtin function of the given type.
 	call get_obj
-
 	mov bx, ax
+
+	;; Store the given assembly function pointer with the builtin function.
 	mov WORD [bx+FUNC], di
-	mov WORD [bx+FUNC_NAME], si
+	
+	;; Construct a symbol representing the builtin function's name.
+	mov di, si  ; Given string.
+	call get_sym
+
+	;; Store the symbol with the builtin function.
+	mov WORD [bx+FUNC_NAME], ax
+
+	;; Bind the symbol to the builtin function.
+	mov di, ax  ; Symbol.
+	mov si, bx  ; Builtin function.
+	call bind
 
 	;; restore
-	pop dx
+	pop si
+	pop di
 	pop bx
-
-	ret
-
-get_builtin_2:
-;;; Construct a builtin Lisp function that takes 2 arguments.
-;;; 
-;;; Pre:
-;;; - di points to the assembly function.
-;;; - si points to the symbol representing the function's name.
-;;;
-;;; Post:
-;;; - ax points to the object.
-	;; save
-	push bx
-	push dx
-
-	mov BYTE dl, TYPE_BUILTIN_2
-	call get_obj
-
-	mov bx, ax
-	mov WORD [bx+FUNC], di
-	mov WORD [bx+FUNC_NAME], si
-
-	;; restore
-	pop dx
-	pop bx
+	pop ax
 
 	ret
 
