@@ -5,6 +5,8 @@ CS 301 Fall 2018
 
 TODO: toc
 
+TODO: make presentation slides public and link from README
+
 ## Project goals
 
 The **final goal** is a bootable, 16-bit Lisp interpreter for x86 real mode.
@@ -36,9 +38,6 @@ the same in 16-bit NASM.
 I have met my [goals](#project-goals) for the end of the semester and have
 begun implementing [expression evaluation](#expressions).
 
-Also see the [presentation
-slides](https://docs.google.com/presentation/d/1YZw3_q5HHI1MRNqKHHEMUKD32Zv9E9hfc_6kBKyDhMs/edit?usp=sharing).
-
 ## Getting started
 
 Known to work on Debian GNU/Linux 9.5 (stretch).
@@ -62,6 +61,10 @@ The interpreter recognizes a handful of special commands:
 - `:restart` reboots the computer.
 
 ## Expressions
+
+FIXME:
+- This section is out of date. Builtin functions `cons`, `car`, `cdr`, and
+  `eval` are now supported.
 
 Only a few kinds of expressions are currently supported:
 
