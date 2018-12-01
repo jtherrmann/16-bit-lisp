@@ -42,8 +42,10 @@ Known to work on Debian GNU/Linux 9.5 (stretch).
 1. Make sure `nasm` and `qemu` are installed.
 2. Clone this repo, `cd` into `lisp/`, and run:
 
-        nasm -f bin -o lisp.bin lisp.asm
-        qemu-system-x86_64 lisp.bin
+    ```none
+    nasm -f bin -o lisp.bin lisp.asm
+    qemu-system-x86_64 lisp.bin
+    ```
 
 ## Interpreter commands
 
@@ -67,74 +69,86 @@ Not yet implemented:
 
 An int is an integer and evaluates to itself:
 
-    > 5
-    5
-    > 123
-    123
+```none
+> 5
+5
+> 123
+123
+```
 
 ### Symbols
 
 A symbol evaluates to the object to which it's bound:
 
-    > (define x 3)
-    > x
-    3
-    > (quote x)
-    x
-    > (eval (quote x))
-    3
+```none
+> (define x 3)
+> x
+3
+> (quote x)
+x
+> (eval (quote x))
+3
+```
 
 ### Pairs and lists
 
 A pair is an object with two data members, car and cdr:
 
-    > (define p (cons 1 2))
-    > p
-    (1 . 2)
-    > (car p)
-    1
-    > (cdr p)
-    2
+```none
+> (define p (cons 1 2))
+> p
+(1 . 2)
+> (car p)
+1
+> (cdr p)
+2
+```
 
 A list is the empty list, `()`, or any pair whose cdr is a list. The empty list
 evaluates to itself, while a non-empty list evaluates as a function
 application:
 
-    > ()
-    ()
-    > (define expr (quote (cons 1 2)))
-    > expr
-    (cons 1 2)
-    > (eval expr)
-    (1 . 2)
+```none
+> ()
+()
+> (define expr (quote (cons 1 2)))
+> expr
+(cons 1 2)
+> (eval expr)
+(1 . 2)
+```
 
 A non-list pair cannot be evaluated:
 
-    > (define expr (cons (quote x) (cons (quote y) (quote z))))
-    > expr
-    (x y . z)
-    > (eval expr)
-    Invalid expression:
+```none
+> (define expr (cons (quote x) (cons (quote y) (quote z))))
+> expr
+(x y . z)
+> (eval expr)
+Invalid expression:
 
-      (x y . z)
+  (x y . z)
 
-    (x y . z) is not a list
-    Invalid expression:
+(x y . z) is not a list
+Invalid expression:
 
-      (eval expr)
+  (eval expr)
 
-    #<function: eval> signaled an error
+#<function: eval> signaled an error
+```
 
 ### Functions
 
 A function evaluates to itself and can be applied to some number of arguments:
 
-    > cons
-    #<function: cons>
-    > (eval cons)
-    #<function: cons>
-    > (cons 1 2)
-    (1 . 2)
+```none
+> cons
+#<function: cons>
+> (eval cons)
+#<function: cons>
+> (cons 1 2)
+(1 . 2)
+```
 
 ## Special forms
 
@@ -149,10 +163,12 @@ special form: **define** *name* *definition*
 
 Binds the symbol *name* to the result of evaluating *definition*.
 
-    > (define x (quote foo))
-    > (define y (quote bar))
-    > (cons x y)
-    (foo . bar)
+```none
+> (define x (quote foo))
+> (define y (quote bar))
+> (cons x y)
+(foo . bar)
+```
 
 ### quote
 
@@ -160,10 +176,12 @@ special form: **quote** *object*
 
 Evaluates to *object*.
 
-    > (quote hello)
-    hello
-    > (quote (1 2 3))
-    (1 2 3)
+```none
+> (quote hello)
+hello
+> (quote (1 2 3))
+(1 2 3)
+```
 
 ## Builtin functions
 
@@ -190,44 +208,54 @@ The interpreter detects and handles various kinds of errors. Examples:
 
 Parse errors:
 
-    > (quote (1 2 3)
-                    ^
-    Parse error: incomplete list
+```none
+> (quote (1 2 3)
+		^
+Parse error: incomplete list
+```
 
 Invalid expressions:
 
-    > (define 1 2)
-    Invalid expression:
+```none
+> (define 1 2)
+Invalid expression:
 
-      (define 1 2)
+  (define 1 2)
 
-    1 is not a symbol
+1 is not a symbol
+```
 
 An attempt to use `cond` or `lambda`:
 
-    > (lambda (x) x)
-    Invalid expression:
+```none
+> (lambda (x) x)
+Invalid expression:
 
-      (lambda (x) x)
+  (lambda (x) x)
 
-    Special form 'lambda' not yet implemented
+Special form 'lambda' not yet implemented
+```
 
 Type errors:
 
-    > (car ())
-    Type error: () is not a pair
-    Invalid expression:
+```none
+> (car ())
+Type error: () is not a pair
+Invalid expression:
 
-      (car ())
+  (car ())
 
-    #<function: car> signaled an error
+#<function: car> signaled an error
+```
 
 No free memory:
 
-    > :free
-    free objects: 4
-    > (quote (1 2 3))
-    Error: no free memory for new object
-    Lisp has crashed.
+```none
+> :free
+free objects: 4
+> (quote (1 2 3))
+Error: no free memory for new object
+Lisp has crashed.
 
-    Press any key to reboot.
+Press any key to reboot.
+```
