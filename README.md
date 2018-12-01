@@ -67,7 +67,7 @@ Not yet implemented:
 
 ### Ints
 
-An int is an integer and evaluates to itself:
+An int evaluates to itself:
 
 ```none
 > 5
@@ -217,23 +217,12 @@ Parse error: incomplete list
 Invalid expressions:
 
 ```none
-> (define 1 2)
+> (quote 1 2 3)
 Invalid expression:
 
-  (define 1 2)
+  (quote 1 2 3)
 
-1 is not a symbol
-```
-
-An attempt to use `cond` or `lambda`:
-
-```none
-> (lambda (x) x)
-Invalid expression:
-
-  (lambda (x) x)
-
-Special form 'lambda' not yet implemented
+quote takes 1 argument
 ```
 
 Type errors:
