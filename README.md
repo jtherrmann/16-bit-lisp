@@ -7,36 +7,33 @@ TODO: toc
 
 TODO: make presentation slides public and link from README
 
-## Project goals
+## Introduction
 
-The **final goal** is a bootable, 16-bit Lisp interpreter for x86 real mode.
-
-The **end of semester goal** is a partial implementation of the interpreter.
-The partial interpreter should be able to:
-
-- Construct the following Lisp objects: ints, symbols, pairs, and the empty
-  list.
-- Read an input expression and convert it into a Lisp object representing the
-  expression's abstract syntax tree (AST).
-- Print Lisp objects.
-
-Evaluating expressions is not an explicit goal for the end of the semester, but
-I may begin implementing expression evaluation if I have time.
-
-## Background
+Originally, my final goal for the project was a bootable, 16-bit Lisp
+interpreter for x86 real mode.
 
 Before starting this project I had not written an interpreter for any language.
 I found it too difficult to tackle the problem in 16-bit assembly, so I decided
-to write the [first version](https://notabug.org/jtherrmann/lisp-in-c) in C and
-target 64-bit Linux. This was a good decision because it allowed me to focus on
-writing an interpreter without the added challenge of doing so in 16-bit
-assembly. After implementing a Lisp in C, I had a much better idea of how to do
-the same in 16-bit NASM.
+to write the first version in C and target 64-bit Linux. After implementing an
+interpreter in C, I had a much better idea of how to approach the problem using
+16-bit assembly.
 
-## Progress report
+I decided on the following goals for the end of the semester:
 
-I have met my [goals](#project-goals) for the end of the semester and have
-begun implementing [expression evaluation](#expressions).
+- Construct the following Lisp objects: ints, symbols, pairs, and the empty
+  list.
+- Parse input: read an input expression and convert it into a Lisp object
+  representing the expression's abstract syntax tree.
+- Print Lisp objects.
+
+I decided that evaluating expressions should not be an explicit goal for the
+end of the semester. However, I finished the above goals in a reasonable amount
+of time and was able to begin implementing expression evaluation.
+
+The [C version](https://notabug.org/jtherrmann/lisp-in-c) is mostly complete
+and should be considered the complete roadmap for this project. The C version
+also has garbage collection, which is not a goal for the 16-bit assembly
+version.
 
 ## Getting started
 
@@ -60,54 +57,149 @@ The interpreter recognizes a handful of special commands:
 - `:keymap` toggles between QWERTY and Dvorak.
 - `:restart` reboots the computer.
 
-## Expressions
+## Objects
 
-FIXME:
-- This section is out of date. Builtin functions `cons`, `car`, `cdr`, and
-  `eval` are now supported.
+TODO: make TODOs for missing language features
 
-Only a few kinds of expressions are currently supported:
+### Ints
 
-- Ints, symbols, and the empty list
-- The special form `quote`
-- The special form `define`
+An int is an integer and evaluates to itself:
 
-Eventually, the interpreter will also support:
-
-- The special form `cond`
-- The special form `lambda`
-- Function application
-
-Ints and the empty list evaluate to themselves:
-
-    > ()
-    ()
-    > 1
-    1
+    > 5
+    5
     > 123
     123
 
-The special form `quote` takes an argument and returns it without evaluating
-it:
+### Symbols
 
-    > (quote 1)
+A symbol evaluates to the object to which it's bound:
+
+    > (define x 3)
+    > x
+    3
+    > (quote x)
+    x
+    > (eval (quote x))
+    3
+
+### Pairs and lists
+
+A pair is an object with two data members, car and cdr:
+
+    > (define p (cons 1 2))
+    > p
+    (1 . 2)
+    > (car p)
     1
-    > (quote foo)
-    foo
+    > (cdr p)
+    2
+
+A list is the empty list, `()`, or any pair whose cdr is a list. The empty list
+evaluates to itself, while a non-empty list evaluates as a function
+application:
+
+    > ()
+    ()
+    > (define expr (quote (cons 1 2)))
+    > expr
+    (cons 1 2)
+    > (eval expr)
+    (1 . 2)
+
+A non-list pair cannot be evaluated:
+
+    > (define expr (cons (quote x) (cons (quote y) (quote z))))
+    > expr
+    (x y . z)
+    > (eval expr)
+    Invalid expression:
+
+      (x y . z)
+
+    (x y . z) is not a list
+    Invalid expression:
+
+      (eval expr)
+
+    #<function: eval> signaled an error
+
+### Functions
+
+A function evaluates to itself and can be applied to some number of arguments:
+
+    > cons
+    #<function: cons>
+    > (eval cons)
+    #<function: cons>
+    > (cons 1 2)
+    (1 . 2)
+
+## Special forms
+
+### define
+
+special form: **define** *name* *definition*
+
+Binds the symbol *name* to the result of evaluating *definition*.
+
+    > (define x (quote foo))
+    > (define y (quote bar))
+    > (cons x y)
+    (foo . bar)
+
+### quote
+
+special form: **quote** *object*
+
+Evaluates to *object*.
+
+    > (quote hello)
+    hello
     > (quote (1 2 3))
     (1 2 3)
 
-The special form `define` binds a name to a value:
+## Builtin functions
 
-    > (define x 5)
-    > x
-    5
-    > (define animals (quote (dog cat bird)))
-    > animals
-    (dog cat bird)
+There are currently only four builtin functions:
 
-Attempting to evaluate either of the special forms `cond` or `lambda` results
-in an invalid expression:
+- `cons` constructs a pair.
+- `car` returns the first element of a pair.
+- `cdr` returns the second element of a pair.
+- `eval` evaluates an object as an expression.
+
+Their bindings in the global environment can be displayed with the interpreter
+command `:genv`.
+
+TODO: future builtins include:
+
+- Arithmetic operators
+- Logical operators
+- Comparison functions
+- Type predicates
+
+Also see the [builtin functions for the C
+version](https://notabug.org/jtherrmann/lisp-in-c#builtin-functions).
+
+## Error handling
+
+The interpreter detects and handles various kinds of errors. Examples:
+
+Parse errors:
+
+    > (quote (1 2 3)
+                    ^
+    Parse error: incomplete list
+
+Invalid expressions:
+
+    > (define 1 2)
+    Invalid expression:
+
+      (define 1 2)
+
+    1 is not a symbol
+
+An attempt to use `cond` or `lambda`:
 
     > (lambda (x) x)
     Invalid expression:
@@ -116,32 +208,22 @@ in an invalid expression:
 
     Special form 'lambda' not yet implemented
 
-Similarly, function applications are treated as invalid expressions:
+Type errors:
 
-    > (cons 1 2)
+    > (car ())
+    Type error: () is not a pair
     Invalid expression:
 
-      (cons 1 2)
+      (car ())
 
-    Function application not yet implemented
+    #<function: car> signaled an error
 
-A function application is an attempt to evaluate any list other than the empty
-list or one of the special forms.
+No free memory:
 
-## Error handling
+    > :free
+    free objects: 4
+    > (quote (1 2 3))
+    Error: no free memory for new object
+    Lisp has crashed.
 
-The interpreter detects and handles various kinds of errors. For example, parse
-errors:
-
-    > (quote (1 2 3)
-                    ^
-    Parse error: incomplete list
-
-And invalid expressions:
-
-    > (define 1 2)
-    Invalid expression:
-
-      (define 1 2)
-
-    1 is not a symbol
+    Press any key to reboot.
