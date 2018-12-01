@@ -30,7 +30,7 @@ I decided that evaluating expressions should not be an explicit goal for the
 end of the semester. However, I finished the above goals in a reasonable amount
 of time and was able to begin implementing expression evaluation.
 
-The [C version](https://notabug.org/jtherrmann/lisp-in-c) is mostly complete
+[The C version](https://notabug.org/jtherrmann/lisp-in-c) is mostly complete
 and should be considered the complete roadmap for this project. The C version
 also has garbage collection, which is not a goal for the 16-bit assembly
 version.
@@ -59,7 +59,9 @@ The interpreter recognizes a handful of special commands:
 
 ## Objects
 
-TODO: make TODOs for missing language features
+Not yet implemented:
+
+- bools (`#t` and `#f`)
 
 ### Ints
 
@@ -136,6 +138,11 @@ A function evaluates to itself and can be applied to some number of arguments:
 
 ## Special forms
 
+Not yet implemented:
+
+- `cond`: a conditional expression.
+- `lambda`: an anonymous function definition.
+
 ### define
 
 special form: **define** *name* *definition*
@@ -160,6 +167,9 @@ Evaluates to *object*.
 
 ## Builtin functions
 
+The available builtin functions can be displayed by printing the global
+environment with `:genv`.
+
 There are currently only four builtin functions:
 
 - `cons` constructs a pair.
@@ -167,18 +177,12 @@ There are currently only four builtin functions:
 - `cdr` returns the second element of a pair.
 - `eval` evaluates an object as an expression.
 
-Their bindings in the global environment can be displayed with the interpreter
-command `:genv`.
-
-TODO: future builtins include:
+Not yet implemented:
 
 - Arithmetic operators
 - Logical operators
 - Comparison functions
 - Type predicates
-
-Also see the [builtin functions for the C
-version](https://notabug.org/jtherrmann/lisp-in-c#builtin-functions).
 
 ## Error handling
 
