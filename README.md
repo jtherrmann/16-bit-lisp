@@ -30,10 +30,9 @@ I decided that evaluating expressions should not be an explicit goal for the
 end of the semester. However, I finished the above goals in a reasonable amount
 of time and was able to begin implementing expression evaluation.
 
-[The C version](https://notabug.org/jtherrmann/lisp-in-c) is mostly complete
-and should be considered the complete roadmap for this project. The C version
-also has garbage collection, which is not a goal for the 16-bit assembly
-version.
+[The C version](https://github.com/jtherrmann/lisp-in-c) is mostly complete and
+should be considered the roadmap for this project. The C version also has
+garbage collection, which is not a goal for the 16-bit assembly version.
 
 ## Getting started
 
