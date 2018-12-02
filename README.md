@@ -32,7 +32,8 @@ of time and was able to begin implementing expression evaluation.
 
 [The C version](https://github.com/jtherrmann/lisp-in-c) is mostly complete and
 should be considered the roadmap for this project. The C version also has
-garbage collection, which is not a goal for the 16-bit assembly version.
+garbage collection, which is not necessarily a goal for the 16-bit assembly
+version.
 
 ## Getting started
 
