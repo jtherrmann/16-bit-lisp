@@ -96,7 +96,6 @@
 	%define TYPE_INT 0x02
 	%define TYPE_SYMBOL 0x03
 	%define TYPE_PAIR 0x04
-	;; TODO: add support for builtins in: equal, others?
 	%define TYPE_BUILTIN_1 0x05  ; 1-arg builtin function
 	%define TYPE_BUILTIN_2 0x06  ; 2-arg builtin function
 
