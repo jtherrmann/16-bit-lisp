@@ -107,7 +107,8 @@
 
 ;;; Lisp object heap size:
 
-	%define OBJ_HEAP_SIZE OBJ_SIZE * 200  ; TODO: find good size for demo
+	;; We could make this much larger if necessary.
+	%define OBJ_HEAP_SIZE OBJ_SIZE * 1024
 
 	
 ;;; ===========================================================================
