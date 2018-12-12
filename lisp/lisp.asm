@@ -1,8 +1,9 @@
-;;; TODO:
-;;; - address TODO/FIXME in file
-;;; - make sure procedures preserve ax when they call other procedures that
-;;;   return in ax
-;;; - update docstring comments for consistent formatting
+;;; lisp.asm
+;;; Jake Herrmann
+;;; 12 Dec 2018
+;;; 
+;;; CS 301 Fall 2018
+;;; A 16-bit x86 Lisp interpreter (work in progress).
 
 	BITS 16
 
@@ -389,8 +390,12 @@ make_emptylist:
 
 get_int:
 ;;; Construct a Lisp int.
-;;; Pre: di contains the int value.
-;;; Post: ax points to the object.
+;;; 
+;;; Pre:
+;;; - di contains the int value.
+;;; 
+;;; Post:
+;;; - ax points to the object.
 	;; save
 	push bx
 	push dx
@@ -493,8 +498,13 @@ get_sym:
 
 cons:
 ;;; Construct a Lisp pair.
-;;; Pre: di and si contain car and cdr.
-;;; Post: ax points to the object.
+;;; 
+;;; Pre:
+;;; - di and si contain car and cdr.
+;;; 
+;;; Post:
+;;; - ax points to the object.
+
 	;; save
 	push bx
 	push dx
@@ -581,8 +591,13 @@ make_builtin_function:
 
 get_obj:
 ;;; Construct a Lisp object with the specified type.
-;;; Pre: dl contains the type.
-;;; Post: ax points to the object.
+;;; 
+;;; Pre:
+;;; - dl contains the type.
+;;; 
+;;; Post:
+;;; - ax points to the object.
+
 	;; save
 	push bx
 	push si
@@ -623,6 +638,10 @@ get_obj:
 
 init_freelist:
 ;;; Construct the initial list of free objects.
+;;;
+;;; The freelist idea comes from arpilisp:
+;;; https://github.com/marcpaq/arpilisp/blob/master/arpilisp.s#L786
+
 	%define LAST_OBJ OBJ_HEAP_SIZE - OBJ_SIZE
 
 	;; save
@@ -746,11 +765,16 @@ parse:
 
 parse_list:
 ;;; Convert part of the input str to a Lisp list.
-;;; Pre: di points to a non-space char in the input str.
+;;; 
+;;; Pre:
+;;; - di points to a non-space char in the input str.
+;;; 
 ;;; Post:
 ;;; - ax points to the parsed object.
 ;;; - di points to the first non-space char after the parsed substr.
-;;; On error: Return NULL.
+;;; 
+;;; On error:
+;;; - Return NULL.
 
 	;; save
 	push bx
@@ -1170,8 +1194,12 @@ parse_int:
 
 skipspace:
 ;;; Move to the next non-space char in the input str.
-;;; Pre: di points to the current position in the input str.
-;;; Post: di points to the next non-space char.
+;;; 
+;;; Pre:
+;;; - di points to the current position in the input str.
+;;; 
+;;; Post:
+;;; - di points to the next non-space char.
 	jmp .test
 	.loop:
 	inc di
@@ -1184,7 +1212,10 @@ skipspace:
 
 badinput:
 ;;; Print an arrow indicating a bad char in the input str.
-;;; Pre: di points to the char.
+;;; 
+;;; Pre:
+;;; - di points to the char.
+
 	;; save
 	push cx
 	push dx
@@ -2090,7 +2121,9 @@ print_sym:
 
 print_num:
 ;;; Print a number.
-;;; Pre: di contains the number.
+;;; 
+;;; Pre:
+;;; - di contains the number.
 
 	;; save
 	push ax
@@ -2172,7 +2205,10 @@ print_num:
 
 print_pair:
 ;;; Print a chain of Lisp objects beginning with the given pair.
-;;; Pre: di points to the pair.
+;;; 
+;;; Pre:
+;;; - di points to the pair.
+
 	;; save
 	push di
 	push dx
@@ -2256,6 +2292,11 @@ equal:
 ;;;
 ;;; Post:
 ;;; - ax contains 1 if the objects are equal and 0 otherwise.
+;;;
+;;; TODO:
+;;; - When equal becomes the builtin Lisp function equal?, we'll need to handle
+;;;   function objects that have the same type but are different objects (the
+;;;   same way TYPE_UNIQUE objects are handled).
 
 	;; save
 	push cx
@@ -2719,7 +2760,9 @@ typecheck:
 
 execute_command:
 ;;; Call a command given an input string.
-;;; Pre: di points to the input string.
+;;; 
+;;; Pre:
+;;; - di points to the input string.
 
 	;; save
 	push bx
@@ -2853,7 +2896,7 @@ invalid_command:
 
 	;; The help command prints the first help_list_len commands from the
 	;; command table.
-	help_list_len dw 6  ; TODO: check val is correct
+	help_list_len dw 6
 
 ;;; Command strings:
 
@@ -3138,8 +3181,12 @@ cursor_backspace:
 
 convert_char:
 ;;; Convert a character from QWERTY to Dvorak.
-;;; Pre: al contains the character as it was entered with QWERTY.
-;;; Post: al contains the corresponding Dvorak character.
+;;; 
+;;; Pre:
+;;; - al contains the character as it was entered with QWERTY.
+;;; 
+;;; Post:
+;;; - al contains the corresponding Dvorak character.
 	push bx  ; save
 
 	;; chars < 0x21 don't need conversion
@@ -3165,14 +3212,18 @@ convert_char:
 
 println:
 ;;; Print a string on a new line.
-;;; Pre: di points to the beginning of the string.
+;;; 
+;;; Pre:
+;;; - di points to the beginning of the string.
 	call print_newline
 	call print
 	ret
 
 print:
 ;;; Print a string.
-;;; Pre: di points to the beginning of the string.
+;;; 
+;;; Pre:
+;;; - di points to the beginning of the string.
 
 	;; save
 	push ax
@@ -3221,7 +3272,9 @@ print_newline:
 
 putc:
 ;;; Print a char.
-;;; Pre: dl contains the char.
+;;; 
+;;; Pre:
+;;; - dl contains the char.
 	;; save
 	push ax
 
@@ -3241,8 +3294,12 @@ putc:
 
 compare_strings:
 ;;; Compare two strings.
-;;; Pre: di and si point to the strings.
-;;; Post: ax contains 1 if the strings are equal and 0 otherwise.
+;;; 
+;;; Pre:
+;;; - di and si point to the strings.
+;;; 
+;;; Post:
+;;; - ax contains 1 if the strings are equal and 0 otherwise.
 	push bx  ; save
 
 	mov bx, 0  ; index into each string
@@ -3284,8 +3341,12 @@ compare_strings:
 
 divide:
 ;;; Divide the first operand by the second operand.
-;;; Pre: di contains the first operand and si the second operand.
-;;; Post: ax contains the quotient and dx the remainder.
+;;; 
+;;; Pre:
+;;; - di contains the first operand and si the second operand.
+;;; 
+;;; Post:
+;;; - ax contains the quotient and dx the remainder.
 
 	;; div divides dx:ax by the operand. ax stores the quotient and dx
 	;; stores the remainder.
@@ -3303,8 +3364,12 @@ divide:
 
 power:
 ;;; Raise the first operand to the power of the second operand.
-;;; Pre: di contains the first operand and si the second operand.
-;;; Post: ax contains the result.
+;;; 
+;;; Pre:
+;;; - di contains the first operand and si the second operand.
+;;; 
+;;; Post:
+;;; - ax contains the result.
 	push si  ; save
 
 	;; Return 1 if the exponent is 0.
