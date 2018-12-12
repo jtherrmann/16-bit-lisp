@@ -3,9 +3,21 @@
 Jake Herrmann  
 CS 301 Fall 2018
 
-TODO: toc
+## Contents
 
-TODO: make presentation slides public and link from README
+- [Introduction](#introduction)
+- [Getting started](#getting-started)
+- [Interpreter commands](#interpreter-commands)
+- [Objects](#objects)
+  - [Ints](#ints)
+  - [Symbols](#symbols)
+  - [Pairs and lists](#pairs-and-lists)
+  - [Functions](#functions)
+- [Special forms](#special-forms)
+  - [define](#define)
+  - [quote](#quote)
+- [Builtin functions](#builtin-functions)
+- [Error handling](#error-handling)
 
 ## Introduction
 
