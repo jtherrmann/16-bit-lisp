@@ -110,7 +110,7 @@ A pair is an object with two data members, car and cdr:
 
 A list is the empty list, `()`, or any pair whose cdr is a list. The empty list
 evaluates to itself, while a non-empty list evaluates as a function
-application:
+application or special form:
 
     > ()
     ()
