@@ -3437,7 +3437,7 @@ reboot_comp:
 	input_buffer times INPUT_SIZE+1 db 0
 
 	;; Whether Dvorak mode is enabled.
-	dvorak_mode db 1  ; TODO: back to 0 before submit project
+	dvorak_mode db 0
 
 	;; Whether we are currently evaluating an expression at the top level
 	;; of the program.
