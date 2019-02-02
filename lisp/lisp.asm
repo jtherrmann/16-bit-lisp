@@ -227,6 +227,9 @@ main:
 	call init_freelist
 	call make_initial_objs
 
+	call run_tests
+	call print_newline
+
 	mov di, .welcome_str
 	call println
 
@@ -283,6 +286,146 @@ main:
 	call print_obj
 
 	jmp .loop
+
+
+;;; ===========================================================================
+;;; Tests
+;;; ===========================================================================
+
+run_tests:
+	push ax
+	push cx
+	push di
+
+	jmp .start
+
+	.failedstr db "Tests failed: ",0
+
+	.start:
+
+	xor cx, cx		; Number of failed tests.
+
+	call test_parse_int
+	add cx, ax
+
+	call print_newline
+
+	;; Print number of failed tests.
+	mov di, .failedstr
+	call println
+	mov di, cx
+	call print_num
+
+	pop di
+	pop cx
+	pop ax
+	ret
+
+test_parse_int:
+;;; Post:
+;;; - ax contains 1 if the test failed and 0 if it passed.
+	push di
+	push si
+
+	jmp .start
+
+	.teststr db "test_parse_int",0
+	.intstr db "123",0
+	.passstr db "PASS",0
+	.failstr db "FAIL",0
+
+	.start:
+
+	mov di, .teststr
+	call println
+
+	;; Get actual value.
+	mov di, .intstr
+	call parse_int
+	mov si, ax
+
+	;; Get expected value.
+	mov di, 123
+	call get_int
+
+	mov di, ax
+	call assert_equal
+
+	cmp ax, 1
+	je .fail
+
+	mov di, .passstr
+	call println
+
+	jmp .return
+
+	.fail:
+	mov di, .failstr
+	call println
+
+	.return:
+
+	pop si
+	pop di
+
+	ret
+
+assert_equal:
+;;; Assert that two Lisp objects are equal.
+;;; 
+;;; Pre:
+;;; - di points to the expected object.
+;;; - si points to the actual object.
+;;;
+;;; Post:
+;;; - ax contains 1 if the assertion failed and 0 if it passed.
+	push di
+
+	jmp .start
+
+	.expectedstr db "Expected: ",0
+	.actualstr db   "Actual:   ",0
+	.equalstr db    "Equal: ",0
+	.truestr db "TRUE",0
+	.falsestr db "FALSE",0
+
+	.start:
+
+	push di			; Save expected object.
+	mov di, .expectedstr
+	call println
+	pop di			; Restore expected object.
+	call print_obj
+
+	push di			; Save expected object.
+	mov di, .actualstr
+	call println
+	mov di, si
+	call print_obj
+	mov di, .equalstr
+	call println
+	pop di			; Restore expected object.
+
+	call equal
+	cmp ax, 0
+	je .false
+
+	mov di, .truestr
+	call print
+	mov ax, 0
+	jmp .return
+
+	.false:
+	mov di, .falsestr
+	call print
+	mov ax, 1
+
+	.return:
+
+	pop di
+
+	ret
+	
 
 
 ;;; ===========================================================================
