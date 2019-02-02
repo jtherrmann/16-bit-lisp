@@ -321,6 +321,9 @@ run_tests:
 	pop ax
 	ret
 
+;;; TODO:
+;;; - more assertions
+;;; - test leading 0s
 test_parse_int:
 ;;; Post:
 ;;; - ax contains 1 if the test failed and 0 if it passed.
@@ -329,7 +332,7 @@ test_parse_int:
 
 	jmp .start
 
-	.teststr db "test_parse_int",0
+	.teststr db "test_parse_int",0 ; TODO: DRY
 	.intstr db "123",0
 	.passstr db "PASS",0
 	.failstr db "FAIL",0
