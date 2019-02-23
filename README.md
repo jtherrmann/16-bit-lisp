@@ -1,7 +1,8 @@
 # 16-bit Lisp interpreter (work in progress)
 
 Jake Herrmann  
-CS 301 Fall 2018
+CS 301 Fall 2018  
+Project 2
 
 ## Contents
 
@@ -22,15 +23,10 @@ CS 301 Fall 2018
 ## Introduction
 
 Originally, my final goal for the project was a bootable, 16-bit Lisp
-interpreter for x86 real mode.
-
-Before starting this project I had not written an interpreter for any language.
-I found it too difficult to tackle the problem in 16-bit assembly, so I decided
-to write the first version in C and target 64-bit Linux. After implementing an
-interpreter in C, I had a much better idea of how to approach the problem using
-16-bit assembly.
-
-I decided on the following goals for the end of the semester:
+interpreter for x86 real mode. I had never written a parser or interpreter, so
+I first wrote a Lisp interpreter in C, which gave me a better idea of how to do
+the same in 16-bit assembly. I decided on the following goals for the end of
+the semester:
 
 - Construct the following Lisp objects: ints, symbols, pairs, and the empty
   list.
@@ -41,11 +37,6 @@ I decided on the following goals for the end of the semester:
 I decided that evaluating expressions should not be an explicit goal for the
 end of the semester. However, I finished the above goals in a reasonable amount
 of time and was able to begin implementing expression evaluation.
-
-[The C version](https://github.com/jtherrmann/lisp-in-c) is mostly complete and
-should be considered the roadmap for this project. The C version also has
-garbage collection, which is not necessarily a goal for the 16-bit assembly
-version.
 
 ## Getting started
 
