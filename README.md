@@ -1,7 +1,8 @@
 # 16-bit Lisp interpreter (work in progress)
 
-Jake Herrmann  
-CS 301 Fall 2018  
+Jake Herrmann\
+CS 301: Assembly Language Programming\
+Fall 2018\
 Project 2
 
 ## Contents
